@@ -7,7 +7,7 @@ function testProgram(code, tokens) {
 }
 
 suite('Lexer', function() {
-	testProgram('# comment', ['']);
+	testProgram('a # comment', ['a']);
 
 	testProgram('# comment\nz', ['z']);
 
