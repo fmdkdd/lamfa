@@ -44,6 +44,10 @@ suite('facets', function() {
 	testInterpret('[(λa.!a) ref 42]', facet(1, 42, '⟂'), null, [1]);
 
 	testInterpret('[<1 ? (λx.x) : ⟂> 4]', facet(1, 4, '⟂'));
+
+  // let z = ref 1 in (if <1 ? false : true> then z := 0; !z)
+  testInterpret('[(λz.[(λ$0.!z) [[[<1 ? (λx.(λy.y)) : (λx.(λy.x))> (λd.z := 0)] (λd.0)] (λx.x)]]) ref 1]',
+                facet(1, 1, 0));
 });
 
 suite('bottom', function() {

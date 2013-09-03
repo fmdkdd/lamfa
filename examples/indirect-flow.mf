@@ -1,8 +1,8 @@
-let x = ref (<1 ? false : ⟂>) in (
+let x = ref (<1 ? true : ⟂>) in (
   let y = ref true in (
     let z = ref true in (
-      if !x then y := false;
-      if !y then z := false;
+      if !x then y := false;  # y = <1 ? false : true>
+      if !y then z := false;  # z = <1 ? true : false>
         !z)))
 
 
