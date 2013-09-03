@@ -6,19 +6,19 @@ let x = ref (<1 ? false : ⟂>) in (
         !z)))
 
 
-x = <true> => !z = true; !b = <false>
-x = <false> => !b = false; !z = <true>
+# x = <true> => !z = true; !b = <false>
+# x = <false> => !b = false; !z = <true>
 
-let b' = ref (if !x then true else false)
-ref <1 ? true : false>
+# let b' = ref (if !x then true else false)
+# ref <1 ? true : false>
 
-ref e ==> <k ? v1 : v2> -> ref <k ? v1 : v2>
- <=> <k ? ref v1 : ref v2>
+# ref e ==> <k ? v1 : v2> -> ref <k ? v1 : v2>
+# <=> <k ? ref v1 : ref v2>
 
-ref true -> Σ[a = true]
+# ref true -> Σ[a = true]
 
-let b = (if !x then ref true else ref false)
-<1 ? ref true : ref false>
+# let b = (if !x then ref true else ref false)
+# <1 ? ref true : ref false>
 
-let b = (if !x then ref true else 23)
-<1 ? ref true : 23>
+# let b = (if !x then ref true else 23)
+# <1 ? ref true : 23>

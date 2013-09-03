@@ -3,9 +3,9 @@ if true then x := true
 fi <true: false> then !x
   <1 ? <1 ? true : false> : 0>
 
-if false else y := true
-y = <!1 ? true : false>
+# if false else y := true
+# y = <!1 ? true : false>
 
-fi !y then !y
-fi <true : false> then !y
-<!1 ? 0 : <!1 ? true : false>>
+# fi !y then !y
+# fi <true : false> then !y
+# <!1 ? 0 : <!1 ? true : false>>

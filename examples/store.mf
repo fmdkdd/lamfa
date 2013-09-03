@@ -4,11 +4,11 @@ let f = <1? true : false> in (
       !x
   )))
 
-if <1 ? true : false> then x := true else x := false
+# if <1 ? true : false> then x := true else x := false
 
-x = 0
-if true x := true
-x = true
+# x = 0
+# if true x := true
+# x = true
 
-if false x := false
-x = false
+# if false x := false
+# x = false
