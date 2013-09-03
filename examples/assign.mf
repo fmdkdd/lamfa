@@ -1,0 +1,4 @@
+let y = ref 0 in (
+  if true then y := 1;
+  !y
+)

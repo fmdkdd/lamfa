@@ -1,0 +1,6 @@
+let a = true in (
+let c = true in (
+let b = true in (
+if a then b := false;
+if b then c := false;
+if c then 1)))

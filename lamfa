@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+
+var modes = ['lex', 'parse', 'unparse', 'desugar', 'run', 'ran'];
+
+var argv = require('optimist')
+	.usage('Usage: lamfa [' + modes.join('|') + '] file')
+	.demand(1)
+	.check(function(argv) {
+		var mode = argv._[0];
+		if (modes.indexOf(mode) == -1)
+			throw new Error('Unknown mode ' + mode);
+	})
+	.argv;
+
+var mode = argv._[0];
+var file = argv._[1];
+
+if (file) {
+  var fs = require('fs');
+	var source = fs.readFileSync(file, 'utf8');
+	run(source);
+} else {
+	stdin(run);
+}
+
+function run(source) {
+	var lamfa = require('./');
+
+	switch (mode) {
+	case 'lex':
+		console.log(lamfa.lexer.lex(source));
+		break;
+
+	case 'parse':
+		var AST = lamfa.parse(source);
+		console.log(JSON.stringify(AST, null, 2));
+		break;
+
+	case 'unparse':
+		console.log(lamfa.unparse(JSON.parse(source)));
+		break;
+
+	case 'desugar':
+		var AST = lamfa.desugar(lamfa.parse(source));
+		console.log(lamfa.unparse(AST));
+		break;
+
+	case 'run':
+		var AST = lamfa.desugar(lamfa.parse(source));
+    console.log(lamfa.interpreter.prettyPrint(lamfa.interpret(AST)));
+		break;
+
+  case 'ran':
+		var AST = lamfa.desugar(lamfa.parse(source));
+    console.log(lamfa.interpretStandard(AST));
+		break;
+	}
+}
+
+function stdin(callback) {
+	var source = '';
+
+	process.stdin.resume();
+	process.stdin.setEncoding('utf8');
+
+	process.stdin.on('data', function(chunk) {
+		source += chunk;
+	})
+	process.stdin.on('end', function() {
+		callback(source);
+	})
+}

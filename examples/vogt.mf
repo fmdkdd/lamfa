@@ -1,0 +1,5 @@
+let c = ref (<1 ? true : false>) in (
+  let x = ref false in (
+    let y = ref false in (
+     let d = [[[(!c) (λd.x := (λx.(λy.x)))] (λd.y := (λx.(λy.x)))] (λu.u)] in (
+       fi !x then 6))))

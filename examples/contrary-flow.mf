@@ -1,0 +1,6 @@
+let x = ref (<1 ? false : ⟂>) in (
+  let y = ref true in (
+    let z = ref false in (
+      fi !x then y := false;
+      if !y then z := true;
+        !z)))

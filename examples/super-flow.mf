@@ -1,0 +1,12 @@
+let x = ref (<1 ? false : ⟂>) in (
+  let y = ref true in (
+    let z = ref false in (
+      let a = ref true in (
+        let b = ref true in (
+          if !x then a := false;
+          if !a then b := false;
+
+          fi !x then y := false;
+          if !y then z := true;
+
+          [[[(!z) (λd.!z)] (λd.!b)] (λu.u)])))))

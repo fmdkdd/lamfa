@@ -1,0 +1,6 @@
+let y = (λf.[(λx.[f (λv.[[x x] v])]) (λx.[f (λv.[[x x] v])])]) in (
+let x = ref (<1 ? true : false>) in (
+  [[[(!x) (λd.0)] (λd.
+  [[y (λa.a)] 2]
+  )] (λu.u)]
+)))
