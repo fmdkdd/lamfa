@@ -8,10 +8,10 @@ function testInterpret(name, AST, expectedValue, expectedStore, environment, ini
   test(name, function() {
     var result = interpret(AST, environment, initialStore);
     should.exist(result, 'Undefined result object');
-    should.exist(result.v, 'Undefined result value');
-    should.exist(result.σ, 'Undefined store');
-    result.v.should.eql(expectedValue);
-    result.σ.elements.should.eql(expectedStore);
+    should.exist(result.value, 'Undefined result value');
+    should.exist(result.store, 'Undefined store');
+    result.value.should.eql(expectedValue);
+    result.store.elements.should.eql(expectedStore);
   });
 }
 
@@ -60,35 +60,35 @@ suite('interpret AST node', function() {
   test('reference a constant', function() {
     var result = interpret(nodes.reference(nodes.constant(1)));
     should.exist(result);
-    should.exist(result.v);
-    result.v.should.be.an.instanceOf(interpreter.Address);
-    result.σ.elements.should.include(1);
+    should.exist(result.value);
+    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.store.elements.should.include(1);
   });
 
   test('reference an address', function() {
     var result = interpret(nodes.reference(nodes.reference(nodes.constant(1))));
     should.exist(result);
-    should.exist(result.v);
-    result.v.should.be.an.instanceOf(interpreter.Address);
-    result.σ.elements.should.include(1);
-    result.σ.elements.should.includeEql(new interpreter.Address(0));
+    should.exist(result.value);
+    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.store.elements.should.include(1);
+    result.store.elements.should.includeEql(new interpreter.Address(0));
   });
 
   test('reference a closure', function() {
     var λ = nodes.abstraction(nodes.constant(1), nodes.constant(1));
     var result = interpret(nodes.reference(λ));
     should.exist(result);
-    should.exist(result.v);
-    result.v.should.be.an.instanceOf(interpreter.Address);
-    result.σ.elements.should.includeEql(new interpreter.Closure(λ, {}));
+    should.exist(result.value);
+    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.store.elements.should.includeEql(new interpreter.Closure(λ, {}));
   });
 
   test('reference ⟂', function() {
     var result = interpret(nodes.reference(nodes.bottom()));
     should.exist(result);
-    should.exist(result.v);
-    result.v.should.be.an.instanceOf(interpreter.Address);
-    result.σ.elements.should.eql(['⟂']);
+    should.exist(result.value);
+    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.store.elements.should.eql(['⟂']);
   });
 
   testInterpret('dereference address',
