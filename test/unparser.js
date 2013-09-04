@@ -13,6 +13,7 @@ suite('parse/unparse', function() {
 		});
 	}
 
+	sanityCheck('⟂');
 	sanityCheck('!x');
 	sanityCheck('ref x');
 	sanityCheck('[x z := e]');

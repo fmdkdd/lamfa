@@ -20,4 +20,6 @@ suite('desugar', function() {
 	testDesugar('a ; b', '[(λ$0.b) a]');
 	testDesugar('a := b', 'a := b');
 	testDesugar('<1 ? true : false>', '<1 ? (λx.(λy.x)) : (λx.(λy.y))>');
+	testDesugar('ref 0', 'ref 0');
+	testDesugar('!0', '!0');
 });
