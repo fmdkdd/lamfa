@@ -1,7 +1,8 @@
 var should = require('should');
 
-var interpreter = require('../lib/interpreter-facets');
-var interpret = interpreter.interpret;
+var Address = require('../lib/address')
+var Closure = require('../lib/closure');
+var interpret = require('../lib/interpreter-facets');
 var nodes = require('../lib/parser').nodes;
 
 function testInterpret(name, AST, expectedValue, expectedStore, options) {
@@ -32,12 +33,12 @@ suite('interpret AST node', function() {
                             nodes.variable('x'));
 	testInterpret('abstraction',
                 λ,
-                new interpreter.Closure(λ, {}), []);
+                new Closure(λ, {}), []);
 
 
 	testInterpret('abstraction with substitution',
                 λ,
-                new interpreter.Closure(λ, {x: 3}), [], {env: {x: 3}});
+                new Closure(λ, {x: 3}), [], {env: {x: 3}});
 
 	testInterpret('application',
                 nodes.application(λ, nodes.constant(3)),
@@ -61,7 +62,7 @@ suite('interpret AST node', function() {
     var result = interpret(nodes.reference(nodes.constant(1)));
     should.exist(result);
     should.exist(result.value);
-    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.value.should.be.an.instanceOf(Address);
     result.store.elements.should.include(1);
   });
 
@@ -69,9 +70,9 @@ suite('interpret AST node', function() {
     var result = interpret(nodes.reference(nodes.reference(nodes.constant(1))));
     should.exist(result);
     should.exist(result.value);
-    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.value.should.be.an.instanceOf(Address);
     result.store.elements.should.include(1);
-    result.store.elements.should.includeEql(new interpreter.Address(0));
+    result.store.elements.should.includeEql(new Address(0));
   });
 
   test('reference a closure', function() {
@@ -79,15 +80,15 @@ suite('interpret AST node', function() {
     var result = interpret(nodes.reference(λ));
     should.exist(result);
     should.exist(result.value);
-    result.value.should.be.an.instanceOf(interpreter.Address);
-    result.store.elements.should.includeEql(new interpreter.Closure(λ, {}));
+    result.value.should.be.an.instanceOf(Address);
+    result.store.elements.should.includeEql(new Closure(λ, {}));
   });
 
   test('reference ⟂', function() {
     var result = interpret(nodes.reference(nodes.bottom()));
     should.exist(result);
     should.exist(result.value);
-    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.value.should.be.an.instanceOf(Address);
     result.store.elements.should.eql(['⟂']);
   });
 
@@ -122,7 +123,7 @@ suite('interpret AST node', function() {
   });
 });
 
-var createFacet = interpreter.createFacet;
+var createFacet = require('../lib/facet').createFacet;
 
 suite('interpret (facets) with PC set', function() {
   test('ref 42', function() {
@@ -130,7 +131,7 @@ suite('interpret (facets) with PC set', function() {
                           {pc: [1]});
     should.exist(result);
     should.exist(result.value);
-    result.value.should.be.an.instanceOf(interpreter.Address);
+    result.value.should.be.an.instanceOf(Address);
     result.store.elements.should.includeEql(createFacet(1, 42, '⟂'));
   });
 });
@@ -183,14 +184,15 @@ suite('interpret (facets) AST node', function() {
                 createFacet(1, 0, 2), []);
 });
 
+var prettyPrint = require('../lib/prettyPrint');
+
 function testPP(name, AST, expectedOutput) {
   test(name, function() {
-    var output = interpreter.prettyPrint(interpret(AST).value);
+    var output = prettyPrint(interpret(AST).value);
     should.exist(output);
     output.should.equal(expectedOutput);
   });
 }
-
 
 suite('interpret pretty print', function() {
   testPP('(λx.x)',
