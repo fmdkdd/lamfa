@@ -3,7 +3,7 @@ var should = require('should');
 var Address = require('../lib/address')
 var Closure = require('../lib/closure');
 var interpret = require('../lib/interpreter-standard');
-var nodes = require('../lib/parser').nodes;
+var nodes = require('../lib/ASTnodes');
 
 function testInterpret(name, AST, expectedValue, expectedStore, environment, initialStore) {
   test(name, function() {

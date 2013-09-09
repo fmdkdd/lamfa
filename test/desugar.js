@@ -1,14 +1,13 @@
-var lamfa = require('../');
-var desugar = lamfa.desugar;
-var parser = lamfa.parser;
-var parse = lamfa.parse;
-var nodes = parser.nodes;
-var unparse = lamfa.unparse;
+var desugar = require('../lib/desugar');
+var lex = require('../lib/lexer').lex;
+var parse = require('../lib/parser');
+var nodes = require('../lib/ASTnodes');
+var unparse = require('../lib/unparser');
 
 suite('desugar', function() {
 	function testDesugar(source, expect) {
 		test(source, function() {
-			unparse(desugar(parse(source))).should.equal(expect);
+			unparse(desugar(parse(lex(source)))).should.equal(expect);
 		});
 	}
 

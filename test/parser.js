@@ -1,16 +1,14 @@
-var lamfa = require('../');
-var parser = lamfa.parser;
-var parse = lamfa.parse;
-var nodes = parser.nodes;
-var unparse = lamfa.unparse;
+var lex = require('../lib/lexer').lex;
+var parse = require('../lib/parser');
+var nodes = require('../lib/ASTnodes');
 
 suite('parse', function() {
 	function testParse(source, other) {
 		test(source, function() {
 			if (typeof other == 'string') // code
-				parse(source).should.eql(parse(other));
+				parse(lex(source)).should.eql(parse(lex(other)));
 			else						  // AST
-				parse(source).should.eql(other);
+				parse(lex(source)).should.eql(other);
 		});
 	}
 
@@ -106,19 +104,19 @@ suite('parse', function() {
 suite('Unexpected tokens', function() {
 	test('in simpleExpression()', function() {
 		(function() {
-			parse('.');
+			parse(lex('.'));
 		}).should.throw('Unexpected token "."');
 	});
 
 	test('in expression()', function() {
 		(function() {
-			parse('a ;;');
+			parse(lex('a ;;'));
 		}).should.throw('Unexpected token ";"');
 	});
 
 	test('in expect()', function() {
 		(function() {
-			parse('λ.');
+			parse(lex('λ.'));
 		}).should.throw('Expected token "identifier" got "."');
 	});
 });
