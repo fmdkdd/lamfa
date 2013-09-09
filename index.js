@@ -10,7 +10,7 @@ module.exports = {
 	parser: parser,
 	unparse: unparse,
 	desugar: desugar,
-	interpretStandard: stdInterpret,
+	interpretStandard: stdInterpret.interpret,
   interpret: fctInterpret.interpret,
   interpreter: fctInterpret,
 

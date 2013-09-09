@@ -47,12 +47,12 @@ function run(source) {
 
 	case 'run':
 		var AST = lamfa.desugar(lamfa.parse(source));
-    console.log(lamfa.interpreter.prettyPrint(lamfa.interpret(AST)));
+    console.log(lamfa.interpreter.prettyPrint(lamfa.interpret(AST).value));
 		break;
 
   case 'ran':
 		var AST = lamfa.desugar(lamfa.parse(source));
-    console.log(lamfa.interpretStandard(AST));
+    console.log(lamfa.interpretStandard(AST).value);
 		break;
 	}
 }
