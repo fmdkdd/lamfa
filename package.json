@@ -1,8 +1,8 @@
 {
   "name": "lambda-facets",
   "scripts": {
-    "coverage": "mocha --ui tdd --require should --check-leaks --no-colors",
-    "test": "istanbul cover _mocha -- --ui tdd --require should --check-leaks --no-colors"
+    "test": "mocha --ui tdd --require should --check-leaks --no-colors",
+    "coverage": "istanbul cover _mocha -- --ui tdd --require should --check-leaks --no-colors"
   },
   "dependencies": {
     "optimist": "~0.6.0"
