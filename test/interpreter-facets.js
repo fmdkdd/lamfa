@@ -50,6 +50,12 @@ suite('interpret AST node', function() {
                   nodes.constant(3)),
                   '⟂', []);
 
+  var λbang = nodes.abstraction(nodes.variable('x'),
+                                nodes.dereference(nodes.variable('x')));
+	testInterpret('application with side effect',
+                nodes.application(λbang, nodes.reference(nodes.constant(42))),
+                42, [42]);
+
   test('application of constant', function() {
     (function() {
       interpret(nodes.application(

@@ -1,13 +1,14 @@
 var should = require('should');
 
 var Address = require('../lib/address')
+var Bottom = require('../lib/bottom');
 var Closure = require('../lib/closure');
-var interpret = require('../lib/interpreter-standard');
+var interpret = require('../lib/interpreter-standard').interpret;
 var nodes = require('../lib/ASTnodes');
 
-function testInterpret(name, AST, expectedValue, expectedStore, environment, initialStore) {
+function testInterpret(name, AST, expectedValue, expectedStore, options) {
   test(name, function() {
-    var result = interpret(AST, environment, initialStore);
+    var result = interpret(AST, options);
     should.exist(result, 'Undefined result object');
     should.exist(result.value, 'Undefined result value');
     should.exist(result.store, 'Undefined store');
@@ -16,12 +17,14 @@ function testInterpret(name, AST, expectedValue, expectedStore, environment, ini
   });
 }
 
+var bottom = new Bottom();
+
 suite('interpret AST node', function() {
 	testInterpret('constant',
                 nodes.constant(2), 2, []);
 
 	testInterpret('variable',
-                nodes.variable('x'), 3, [], {x: 3});
+                nodes.variable('x'), 3, [], {env: {x: 3}});
 
   test('variable not in scope', function() {
     (function() {
@@ -38,7 +41,7 @@ suite('interpret AST node', function() {
 
 	testInterpret('abstraction with substitution',
                 λ,
-                new Closure(λ, {x: 3}), [], {x: 3});
+                new Closure(λ, {x: 3}), [], {env: {x: 3}});
 
 	testInterpret('application',
                 nodes.application(λ, nodes.constant(3)),
@@ -48,14 +51,20 @@ suite('interpret AST node', function() {
                 nodes.application(
                   nodes.bottom(),
                   nodes.constant(3)),
-                  '⟂', []);
+                  bottom, []);
+
+  var λbang = nodes.abstraction(nodes.variable('x'),
+                                nodes.dereference(nodes.variable('x')));
+	testInterpret('application with side effect',
+                nodes.application(λbang, nodes.reference(nodes.constant(42))),
+                42, [42]);
 
   test('application of constant', function() {
     (function() {
       interpret(nodes.application(
                   nodes.constant(1),
                   nodes.constant(3)));
-    }).should.throw(/Not a closure, 1/);
+    }).should.throw(/Expected Bottom, Closure but got 1/);
   });
 
   test('reference a constant', function() {
@@ -89,7 +98,7 @@ suite('interpret AST node', function() {
     should.exist(result);
     should.exist(result.value);
     result.value.should.be.an.instanceOf(Address);
-    result.store.elements.should.eql(['⟂']);
+    result.store.elements.should.eql([bottom]);
   });
 
   testInterpret('dereference address',
@@ -98,12 +107,12 @@ suite('interpret AST node', function() {
 
   testInterpret('dereference ⟂',
                 nodes.dereference(nodes.bottom()),
-               '⟂', []);
+                bottom, []);
 
   test('dereference not an address', function() {
     (function() {
       interpret(nodes.dereference(nodes.constant(1)));
-    }).should.throw(/Not an address, 1/);
+    }).should.throw(/Expected Bottom, Address but got 1/);
   });
 
   testInterpret('assign 3 to a reference to 0',
@@ -119,7 +128,7 @@ suite('interpret AST node', function() {
   test('assign 3 to not a reference', function() {
     (function() {
       interpret(nodes.assignment(nodes.constant(1), nodes.constant(3)));
-    }).should.throw(/Not an address, 1/);
+    }).should.throw(/Expected Bottom, Address but got 1/);
   });
 });
 
