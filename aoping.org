@@ -1,0 +1,331 @@
+Reflections on defining and implementing the Lambda Facets interpreter
+on top of the standard ML interpreter in a strong modular fashion.
+
+There are two cases that must be taken into account:
+1. The module you are extending is your own, or you can easily
+   change it.  Then it's more convenient to extend the model.
+2. You cannot change easily the module.  Then you cannot easily change
+   the model, thus you need to use 'patching' methods.
+
+* Non-modular
+Copy/paste interpreter-standard.js to interpreter-facets.js, modify
+/add rules in the new file.
+
+** Advantages
+- Straightforward to do
+- Isolated reasoning (it's a new interpreter)
+
+** Inconveniences
+- Lots of duplicated code lead to duplicated changes, thus extra
+  maintenance effort.
+- Mental overloading of models: it's not a new model, it's only some
+  modifications on top of an existing model.
+
+* Redefinition of changed rules
+Replace function definitions by new ones handling facets.
+
+** First difficulty: closures and module scoping
+interpreter-standard.js does not expose its rules in its interface.
+Modifications to the functions in the rules would need to access the
+closure of interpretProgram.
+
+Therefore the module need to expose at least two interfaces: one for
+library users which are not concerned by implementation details, and
+one for library extenders.  Another solution would be to export an
+Interpreter object, which would carry the rules with it.  While more
+favorable for extenders, it exposes unecessary details to users.
+
+Let's adopt the following convention in node modules: exports
+beginning with an underscore are implementation details exposed only
+for extenders.  Maybe there's a better way to hide this using another
+module mechanism (ES6 ?), at least to expose the extender interface
+only for the same module.
+
+Note: exporting the rules object is brittle, since a reference is
+passed.  Extending the rules only require a copy of the original rules
+object; or at least using a child object with the original rules
+object as its parent.  Whether the exporter or extender should decide
+on the proper solution is unclear.
+
+** Advantages
+- A lot less duplication; lesser effort of maintenance
+
+** Inconvenients
+- Still some duplication for minor modifications (redefinition of
+  interpretNode for adding taking the pc argument into account).
+
+* AOP
+Well, most modifications are inside the body of functions.  We have
+to be able to modify the advised function's closure, arguments,
+outbound calls ... it's messy.
+
+One way to have clean AOP in the facets interpreter is to define more
+functions in the standard operator.  The functions would reify
+operations of the rules, thus being easier to intercept and extend
+(especially in the face of multiple homonymous calls).
+
+** Advantages
+- Modular ...
+
+** Inconvenients
+- May have to touch the original interpreter to accomodate aspects
+  better.
+- Have to think in the execution-time mental model to define
+  pointcuts.
+
+* AOP by Jacques
+Don’t think of Aspects as low-level modifications of a target code.
+Aspects reify separate concerns.  Facets are a concern, taints are a
+concern.  Even modifying the store is a concern.  Joinpoints/poincuts
+are just low-level mechanisms to help realize this vision, but not
+necessarily the best ones.  Design the simplest interpreter, with
+concerns as aspects.  Then find a way to make it work in JS without
+exposing (too much) low-level details to the library programmer /
+extender.
+
+Aspectization the whole model.  See the substitutions, store and
+program counter as extraneous information.  The pure interpreter only
+cares for values.  An aspect can inject context as needed and specify
+the correct flow for rules making use of it.
+
+#+BEGIN_EXAMPLE
+aspect Context (θ, σ, pc) {
+  ...
+  around getValue(r.v) && within(reference) {
+    return createFacet(pc, proceed(), bottom);
+  }
+  ...
+}
+#+END_EXAMPLE
+
+The context aspect carries context objects that go alongside the
+rules.  Inside, an aspect adding facets to the reference rule.
+
+Thus, we can get rid of the context parameters to calls of
+interpretNode.
+
+#+BEGIN_EXAMPLE
+reference: function(node) {
+    var r = interpretNode(node.expr);
+    var a = new Address(r.σ.size);
+    return a;
+  }
+#+END_EXAMPLE
+
+Simpler, leaner.  Store is a side effect, subsitution also, and of
+course program counter.  Notice also the simpler return call; adding
+the store is unnecessary noise.
+
+Note also that aspects can be woven lexically as an optimization,
+which is what Dynamic Monkey Patching advocates.  AspectJ does it,
+but also keeps runtime aspects that cannot be woven in the code
+statically.  It makes no difference when writing the aspect.
+
+On feedback for aspects: writing an aspect should give you a "view" of
+what the modified code will look like, with the aspect code weaved in.
+And it could work both ways: modify the view code, and you get a
+modified aspect.  Kind of like Dreamweaver for HTML.
+
+Finally, think of further extension: if I have one set of aspects for
+adding facets, I can also define one set of aspects for a taint
+analysis, and toggle them on/off to change the base interpreter.
+
+** Realizing the vision
+
+
+* Monkey patching
+Yuk.  Source modification is easy in JS using toString on function
+objects and eval.  The major inconvenient is that the intention is
+somewhat lost in considering functions only as text rather than as a
+sequence of instruction ...  Maybe re-parsing the function source code
+would be a more satisfying monkey-patching.
+
+** Advantages
+- Only modification is specified
+
+** Inconvenients
+- String transformation too low-level; loses intention of the changes
+- Very brittle
+
+* Dynamic monkey patching (for lack of a better name)
+What would really be readable and maintainable: a dynamic monkey
+patching system where the original source code is not copy/pasted but
+only altered.  For instance:
+
+#+BEGIN_EXAMPLE
+function f(x) { return x + 2; }
+#+END_EXAMPLE
+
+A naive monkey-patching wnould be:
+
+#+BEGIN_EXAMPLE
+eval(f.toString().replace(/2/, '3'));
+#+END_EXAMPLE
+
+First there's a problem: string replacing doesn't carry my intentions,
+it'js just a trick that can help my achieve my goal of modifying 2
+to 3.  My intentions are just "Change this 2 there into a three".
+String replacing doesn't indicate context.
+
+And then if I later change the original code for f, the monkey
+patching will most likely fail, and I have to find a new trick to
+accomodate my changes.
+
+Note that when the original definition of =f= changes, my monkey-patch
+might become irrelevant.  This is expected because there's such a
+tight coupling with monkey patching.  Which is a reminder that if you
+want modularity, maybe AOP isn't the best course of action: you may
+want to redefine your model to be more general.  It's easier to
+specialize behavior from a general model than to add special logic to
+a more specific model.
+
+Anyway, a better alternative to monkey-patching would give me source
+context and a constant link back to the original code.
+
+#+BEGIN_EXAMPLE
+function f(x) { return x + 3; }
+#+END_EXAMPLE
+
+Here the =3= would be colored red to indicate it's the change to the
+function =f=, and the rest of the code would be grey.  If I change
+the original definition of =f=, then the code of monkey patches of =f=
+is immediately updated, and the changes are in need of review
+(changing the definition of =f= would notify of pending monkey-patch
+that would be affected).
+
+Here again, specifying changes in term of the AST might be closer to
+the intentions of the extender, and more robust to changes.
+
+Now, realize that there are 3 main modifications when monkey-patching:
+replace, delete and add.  The view should emphasize the kinds of the
+modifications (new lines in green with '+' sign in front, modified
+lines with the new part in orange, deleted lines in grey ...).
+
+So, the tool must allow me to specify changes to the AST, but mainly
+by exposing me the resulting source code, since ASTs are not very
+readable.
+
+With aspects, I might define the changes to rules.reference like so:
+
+#+BEGIN_EXAMPLE
+advice(node, θ, σ, pc)
+1. cflow(rules.reference) && around(interpretNode)
+ -> return self.call(node.expr, θ, σ, pc)
+
+2. clflow(rules.reference) && around(result)
+ -> return result(a, r.σ.set(a, v));
+#+END_EXAMPLE
+
+Using AST transformations, I don't care about cflows, which are
+considerations for the execution model.
+
+#+BEGIN_EXAMPLE
+parse(rules.reference) -> AST
+
+AST.replace(functionCall(interpretNode), ..., pc)
+AST.insertBefore(node(return), parse('v = createFacet'));
+#+END_EXAMPLE
+
+I only see the source code.  I do source modification using source
+(truly AST) modifications.  Same model, no guessing of what my aspect
+might do at execution time.
+
+Of course, I lose some expressivity of aspects, namely cflows for
+indirect call hierarchies.  But it's a tradeoff.  AST transformation
+is simpler (you only consider the source model), hence easier to
+write, read and maintain.
+
+This is related to macros, especially the AST matching / replacing
+part.  Also, according to Ronan, a similar match/replace happens in
+software modeling, where model transformations are prevalent.
+
+** Advantages
+- Same mental model (source-level) for modifications and original code
+
+** Inconvenients
+- Still a strong coupling between modifications and original code.  If
+  the original code changes even slightly (AST differs), the
+  modifications will break.
+- Have to bring in facilities for AST matching and substitution
+- AST matching is verbose and unnatural; if exposed to it, you are no
+  longer working at the source code level but at the parser level.
+
+* OOP
+I said that generalizing the model might be the best course of
+action; at least it seems the more natural for me in this case.
+
+This is the traditional way to solve this extension problem in OOP.
+Make the standard interpreter an object, extend it with facets by
+subclassing.
+
+Recognize that rules can take a variable number of
+arguments (θ, σ, [pc]), so reify these arguments in a "context"
+container.  Rules now take only two arguments: node and context, and
+the signature is the same for both interpreters.  No need for
+monkey-patching (fancy or not), only add the initial =pc= to
+interpretProgram (and then call super.interpretProgram to avoid
+duplicated code).
+
+The interpreter-standard rules could also be generalized to
+better accomodate the variability in rules definition for the facet
+interpreter.
+
+** Advantages
+- Easier than dynamic monkey-patching or AOP, because it relies on
+  features already provided by the language.
+- A better-understood solution, most likely better maintained.
+- As modular as OOP inheritance goes.  There's still coupling though
+  -- if the parent changes, the subclass might need some fixes.
+
+** Inconvenients
+- Have to generalize the initial model, making it more abstract as
+  each feature is added.  (node, context) is less immediately readable
+  than (node, θ, σ, pc): the latter shows exactly the required
+  arguments, while the =context= object needs extra documentation to
+  indicate what to put in.
+- Plus, you need additional destructuring
+
+* Git branching
+Our extension looks like something a branch could do in git.
+
+- Create a branch called 'facets'
+- Modify the source code in interpreter-standard.js for the facets
+  rules
+- Whenever the base interpreter changes, you can update the branch
+  by pulling and be notified of merge conflicts
+
+** Advantages
+- Git takes care of keeping the original code in sync with the
+  additions.
+
+** Inconvenients
+- Now the faceted interpreter does not cohabitate with the standard
+  interpreter; they are in separate branches, and that's very
+  confusing since both should be available to users.
+
+  We could correct this by having a separate Git repo for keeping the
+  original code and extension in sync.  Now that's hairy ...
+
+- Git only syncs the branch when a commit happens ... not when saving
+  files.  That widens the gulf of evaluation.
+
+* Inference rules as unit of extension
+Adding a tainting interpreter, I realize that most additions "inside"
+the rules are a specificity to the way the interpreter is written in
+JS.  Using the inference rule formalism, rules are only added or
+muted.
+
+Generalizing the standard interpreter to allow rules as the unit of
+extension seems an order of magnitude simpler.
+
+Of course, this won't solve all the problems in defining the facets
+interpreter, namely the additional program counter in the context
+object.
+
+* Scoping issues
+All the functions in the `rules` object are closed over the
+interpretNode function of the standard interpreter.
+
+So we need to modify the `interpretNode` function of the standard
+interpreter, or modify its reference in all the closures of the
+`rules` object.
