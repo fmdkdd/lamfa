@@ -131,7 +131,42 @@ adding facets, I can also define one set of aspects for a taint
 analysis, and toggle them on/off to change the base interpreter.
 
 ** Realizing the vision
+The tricky bit is to have the PC (Program Counter) follow the control
+flow.
 
+#+BEGIN_EXAMPLE
+aspect PC {
+  var currentPC;
+
+  around interpretNode(node, θ, σ, pc) {
+    currentPC = pc;
+    return proceed(node, θ, σ);
+  }
+
+  around rules.*(node, θ, σ) {
+    return proceed(node, θ, σ, currentPC);
+  }
+}
+#+END_EXAMPLE
+
+This allows only one PC for each call to interpretNode.  In
+particular, the PC is changed when another call to interpretNode is
+made.  Any execution sequence that contains interleaved calls to
+interpretNode and calls to rules is problematic.
+
+Luckily, JavaScript has a single thread of execution.  A call to
+interpretNode will recurse until it returns.  No call to interpretNode
+or any other function can occur in parallel.  Even if the calls were
+asynchronous:
+* Pragmatic solution: using a global PC
+Since JS has a single thread of execution, and the interpreter is
+written synchronously (no race conditions in the order of async
+calls), a global PC is much simpler to implement than passing a PC
+variable alongside each recursive call to interpretNode.
+
+One inconvenience is that you need to fluid-let the modifications to
+the PC when evaluating two branches.  It can be sort-of reified with a
+function, but it would be best as a macro.
 
 * Monkey patching
 Yuk.  Source modification is easy in JS using toString on function
