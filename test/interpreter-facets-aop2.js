@@ -219,9 +219,11 @@ var prettyPrint = require('../lib/prettyPrint');
 
 function testPP(name, AST, expectedOutput) {
   test(name, function() {
+    interpreter.activateFacet();
     var output = prettyPrint(interpret(AST).value);
     should.exist(output);
     output.should.equal(expectedOutput);
+    interpreter.deactivateFacet();
   });
 }
 
