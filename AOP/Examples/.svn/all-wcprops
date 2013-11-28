@@ -1,0 +1,83 @@
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/incubator/!svn/ver/3594/AOMonad/AOP/Examples
+END
+EnsurePos_secure.hs
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/incubator/!svn/ver/3418/AOMonad/AOP/Examples/EnsurePos_secure.hs
+END
+MemoizedFib.hs
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/incubator/!svn/ver/3581/AOMonad/AOP/Examples/MemoizedFib.hs
+END
+MemoizedFib2.hs
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/incubator/!svn/ver/3404/AOMonad/AOP/Examples/MemoizedFib2.hs
+END
+NominalMasks.hs
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/incubator/!svn/ver/3508/AOMonad/AOP/Examples/NominalMasks.hs
+END
+MemoizedFib3.hs
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/incubator/!svn/ver/3577/AOMonad/AOP/Examples/MemoizedFib3.hs
+END
+LevelAgnostic.hs
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/incubator/!svn/ver/3589/AOMonad/AOP/Examples/LevelAgnostic.hs
+END
+Fib.hs
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/incubator/!svn/ver/3592/AOMonad/AOP/Examples/Fib.hs
+END
+Fib2.hs
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/incubator/!svn/ver/3424/AOMonad/AOP/Examples/Fib2.hs
+END
+EnsurePos.hs
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/incubator/!svn/ver/3418/AOMonad/AOP/Examples/EnsurePos.hs
+END
+EnsurePos_secure_privileged.hs
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/incubator/!svn/ver/3418/AOMonad/AOP/Examples/EnsurePos_secure_privileged.hs
+END
+Fib3.hs
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/incubator/!svn/ver/3580/AOMonad/AOP/Examples/Fib3.hs
+END
+NonInterference.hs
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/incubator/!svn/ver/3594/AOMonad/AOP/Examples/NonInterference.hs
+END
+Queue.hs
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/incubator/!svn/ver/3589/AOMonad/AOP/Examples/Queue.hs
+END

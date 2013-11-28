@@ -1,0 +1,17 @@
+K 10
+svn:ignore
+V 128
+compiled
+*.hi
+*.o
+AOTTests
+NIAOTTests
+ELTTests
+dist
+CflowTests
+SecureAOTTests
+SecurePrivilegedAOTTests
+TestMacros
+MembraneTests
+
+END

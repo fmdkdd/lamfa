@@ -1,0 +1,178 @@
+{-# LANGUAGE Rank2Types,
+             TemplateHaskell,
+             FlexibleContexts,
+             KindSignatures,
+             ScopedTypeVariables,
+             LiberalTypeSynonyms,
+             ImpredicativeTypes,
+             TypeOperators,
+             FlexibleInstances,
+             MultiParamTypeClasses,
+             IncoherentInstances
+  #-}
+
+import AOP.Membranes
+import Control.Monad.Identity
+import Control.Monad.Zipper
+import Control.Monad.Views
+import Debug.Trace
+
+import Unsafe.Coerce
+
+-- Given a fixed-form monadic stack
+type M t (t1 :: (* -> *) -> * -> *) (t2 :: (* -> *) -> * -> *) m = AOT (MembraneT (t (t1 (t2 m))))
+
+-- advice1 can only read/write the Int state of the stack
+advice1Zipper :: (MonadState Int m) => Advice m Int Int
+-- advice1Zipper :: (Monad m, MonadTrans t) => 
+--               Advice ((t :> StateT Int) m) Int Int
+advice1Zipper proceed arg = do
+              i <- get
+              trace ("Advice1 - i: " ++ show i) return ()
+              put (i+500)
+              ii <- get
+              trace ("Advice1 - arg: " ++ show arg ++ " ii: " ++ show ii) (proceed ii)
+
+advice1Views :: (MonadState Bool m) => Advice m Int Int
+advice1Views proceed arg = do
+              i <- get
+              trace ("Advice1 - i: " ++ show i) return ()
+              put (not i)
+              ii <- get
+              trace ("Advice1 - arg: " ++ show arg ++ " ii: " ++ show ii) (proceed 542)
+
+advice2Views :: (MonadState Int m) => Advice m Int Int
+advice2Views proceed arg = do
+              i <- get
+              trace ("Advice2V - i: " ++ show i) return ()
+              put (i+7574)
+              ii <- get
+              trace ("Advice2V - arg: " ++ show arg ++ " ii: " ++ show ii) (proceed ii)
+
+type MM t m = (AOT (MembraneT (t (StateT Bool (StateT Int m)))))
+
+-- liftAspectV :: (Monad m, MonadTrans t) =>
+--               Aspect (StateT Int m) a b c d ->
+--               Aspect (MM t m) a b c d
+-- liftAspectV (Aspect pc adv hnd) = (Aspect (liftViewPC pc) (liftViewAdv adv) hnd)
+
+
+-- -- data PC m a b = Typeable1Monad m => PC {mpcond :: forall a' b'. m (Jp m a' b' -> m Bool)} 
+-- -- mpcond :: forall a' b'. (StateT Int m) (Jp (StateT Int m) a' b' -> (StateT Int m) Bool)
+
+-- -- mpcond :: forall a' b'. (MM t m) (Jp (MM t m) a' b' -> (MM t m) Bool)
+
+-- liftViewPC :: (Monad m, MonadTrans t) =>
+--               PC (StateT Int m) a b ->
+--               PC (MM t m) a b
+-- liftViewPC pc@(PC mpcond) = PC $ \ jpMM -> runPC pc (liftViewJP jpMM)
+--  where vm = o `vcomp` o `vcomp` o
+
+
+<<<<<<< .mine
+-- liftViewAdv ::  (Monad m, MonadTrans t,
+--                  Monad (t (StateT Bool (StateT Int m)))) => 
+--              Advice ((:>)
+--                       (IdentityT :> AOT) 
+--                       MembraneT
+--                       ((:>) (t :> StateT Bool) (StateT Int) m))
+--                       a b ->
+--              Advice (MM t m) a b
+
+
+-- This work for the monadic stack MM
+liftViewAdv adv proceed arg = runIdentityT $ leftL $ bifrom view $ adv (\ a -> bito view ((rightL . IdentityT ) (proceed a))) arg
+=======
+liftViewAdv ::  (Monad m, MonadTrans t,
+                 Monad (t (StateT Bool (StateT Int m)))) => 
+             Advice ((:>)
+                      AOT 
+                      MembraneT
+                      ((:>) (t :> StateT Bool) (StateT Int) m))
+                      a b ->
+             Advice (MM t m) a b
+liftViewAdv adv proceed arg = bifrom view $ adv (\ a -> bito view (proceed a)) arg
+>>>>>>> .r3472
+  where view = o `vcomp` o `vcomp` o
+
+
+liftProceed4 :: (Monad m, MonadTrans t, MonadTrans t') =>
+                (a -> ((AOT :> MembraneT :> t' :> t :> StateT Int) m) b) ->
+                (a -> (AOT (MembraneT (t' (t (StateT Int m))))) b)
+liftProceed4 proceed arg = leftL $ leftL $ leftL $ leftL $ (proceed arg)
+
+shiftProceed4 :: (Monad m, MonadTrans t, MonadTrans t') =>
+                (a -> (AOT (MembraneT (t' (t (StateT Int m))))) b) ->
+                (a -> ((AOT :> MembraneT :> t' :> t :> StateT Int) m) b)                
+shiftProceed4 proceed arg = rightL $ rightL $ rightL $ rightL $ (proceed arg)
+
+liftAdv4 :: (Monad m, MonadTrans t, MonadTrans t') =>
+            Advice ((AOT :> MembraneT :> t' :> t :> StateT Int) m) a b ->
+            Advice (AOT (MembraneT (t' (t (StateT Int m))))) a b
+liftAdv4 adv proceed arg = leftL $ leftL $ leftL $ leftL $ (adv (shiftProceed4 proceed) arg)
+
+-- advice1' as augmentation advice guarantees that proceed gets called only once and with the original argument
+advice1' :: (MonadTrans t', Typeable1Monad (t' (t (StateT Int m))),
+             MonadTrans t, Typeable1Monad m, Typeable1Monad (t m), Typeable1Monad (t (StateT Int m)))
+           => Advice (M t' t (StateT Int) m) Int Int
+advice1' proceed arg = augment (before, after) proceed arg
+         where before arg = do i <- lift $ lift $ lift $ lift $ get
+                               trace ("Advice1 - i: " ++ show i) return ()
+                               (lift . lift . lift . lift . put) (i+500)
+                               ii <- lift $ lift $ lift $ lift $ get
+                               n <- idM # 20 -- it is not advised thanks to topological scoping
+                               trace ("N: " ++ show n) return ()
+                               return ii
+               after arg result ii = trace ("Advice1 - arg: " ++ show arg ++ " ii: " ++ show ii) return ()
+
+-- advice2 can only read/write the Bool state of the stack
+advice2 :: (MonadTrans t', Monad (t' (StateT Bool (t m))), MonadTrans t, Monad m, Monad (t m))
+           => Advice (M t' (StateT Bool) t m) Int Int
+advice2 proceed arg = do b <- lift $ lift $ lift $ get
+                         trace ("Advice2 - b: " ++ show b) return ()
+                         (lift . lift . lift . put) (not b)
+                         bb <- lift $ lift $ lift $ get
+                         trace ("Advice2 - arg: " ++ show arg ++ " bb: " ++ show bb) (proceed arg)
+
+-- advice2' as augmentation advice guarantees that proceed gets called only once and with the original argument
+advice2' :: (MonadTrans t', Monad (t' (StateT Bool (t m))), MonadTrans t, Monad m, Monad (t m))
+           => Advice (M t' (StateT Bool) t m) Int Int
+advice2' proceed arg = augment (before, after) proceed arg
+         where before arg = do b <- lift $ lift $ lift $ get
+                               trace ("Advice2 - b: " ++ show b) return ()
+                               (lift . lift . lift . put) (not b)
+                               bb <- lift $ lift $ lift $ get
+                               return bb
+               after arg result bb = trace ("Advice2 - arg: " ++ show arg ++ " bb: " ++ show bb) return ()
+
+runProg c = runIdentity (evalStateT (evalStateT (runIdentityT (runMembraneT (runAOT c) (1, emptyMembraneGraph))) True) 0)
+
+runBase n = runProg (base n)
+
+idMTag = $newTag + 1
+
+idM :: (Typeable1Monad m) => Function Int (m Int)
+idM = mkFunction (\x -> return x) idMTag
+
+base :: Int -> (AOT (MembraneT (IdentityT (StateT Bool (StateT Int Identity))))) (Int, Bool)
+base n = do m1 <- newMembrane Just Just
+            m2 <- newMembrane Just Just
+            register (aspect (pcCall idM) (liftAdv4 advice1Zipper)) m2
+            register (aspect (pcCall idM) advice2') m2
+            register (aspect (pcCall idM) (liftViewAdv advice2Views)) m2
+            --register (liftAspectV (aspect (pcCall idM) advice2Views)) m2
+            advise (mbId m2) (mbId m1)
+            moveTo (mbId m1) (idM # n)
+            moveTo (mbId m1) (idM # n)
+            intState  <- lift $ lift $ lift $ lift $ get
+            boolState <- lift $ lift $ lift $ get
+            return (intState, boolState)
+
+
+-- instance (MonadTrans t, Typeable1Monad m, Typeable1Monad (t m)) => OpenApp (->) ((AOT :> t) m) where
+          -- f # a = rightL $ wappt_z (leftL . f) defaultFunctionTag a
+
+-- instance (MonadTrans t, Typeable1Monad m, Typeable1Monad (t m)) => OpenApp Function ((AOT :> t) m) where
+--           (Function f t) # a = rightL $ wappt_z (leftL . f) t a
+
+
