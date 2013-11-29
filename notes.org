@@ -1,0 +1,69 @@
+The monadic interpreter is mostly taken from [[http://homepages.inf.ed.ac.uk/wadler/papers/essence/essence.ps][Wadler]].
+
+Other related work:
+- [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]]
+- [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]]
+
+* Downsides to the monadic interpreter approach for modularity
+** Explicit use of monads
+You have to explicitly write the interpreter to return monads instead
+of raw values.
+
+Though one could argue that it’s just a clearer way to write an
+interpreter from the start.
+
+With Haskell’s syntactic sugar for unit and bind, the cost is not that
+great (though there’s still some mode switching required “I have to
+`return` because it expects a monad”).
+
+** The `lift` uglyness
+When using multiple State monad transformers, you must use `lift` to
+access the state you want from the monad stack.  The stack order
+/matters/, but it should not.
+
+Ismael tells me there are workarounds, a library that allows you to
+name the monad transformers and access them by name instead of using
+lift (I guess it does the lifting for you).
+
+If there are no hidden costs or restrictions, then this is not a
+downside anymore.
+
+** Limitations for extending cases for pattern matching
+You can’t just extend functions with additional cases, since
+functions are closed at definition time.
+
+For instance, adding the evaluation of a new `Facet` AST node requires
+adding a new case to `interp`.
+
+#+BEGIN_SRC haskell
+interp (Facet p t1 t2) e =
+  do vH <- interp t1 e
+     vL <- interp t2 e
+     return (FacetV p vH vL)
+#+END_SRC
+
+But this can’t be done in another file, even though Haskell allows you
+to write non-exhaustive functions ...
+
+Using Ismael’s AOP library for Haskell, you can work around it, though
+it requires some additional rewriting of the code for technical
+reasons (supposedly this could be hidden by sugar).
+
+This problem seems solved by [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular
+Interpreters]].
+
+In any case, you lose the ability to write your extensions *like you
+would write* the original code.
+
+** Can’t easily extend the data types either
+To add a new AST node, you need to:
+
+1. Extend the `Term` data type
+2. Add a new case to `interp` for this new Term
+
+Here again, the data type definition is closed.  No reflection
+mechanisms to extend it?  Are there workarounds?
+
+[[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]] define OR types for this
+purpose.  It does not feel very natural to write, but at least if the
+mechanism is there, we could hide it with sugar.
