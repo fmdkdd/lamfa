@@ -49,11 +49,16 @@ Using Ismael’s AOP library for Haskell, you can work around it, though
 it requires some additional rewriting of the code for technical
 reasons (supposedly this could be hidden by sugar).
 
-This problem seems solved by [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular
-Interpreters]].
-
 In any case, you lose the ability to write your extensions *like you
 would write* the original code.
+
+This problem seems solved by [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular
+Interpreters]].  It is also definitely solved by [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and
+Open Functions]].
+
+The latter also allows you to think of open data type extensions as
+one monolithic data type (semantically equivalent).  Except when
+textual order of constructors matter.
 
 ** Can’t easily extend the data types either
 To add a new AST node, you need to:
@@ -67,3 +72,6 @@ mechanisms to extend it?  Are there workarounds?
 [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]] define OR types for this
 purpose.  It does not feel very natural to write, but at least if the
 mechanism is there, we could hide it with sugar.
+
+[[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]] solves the problem in a modular
+way: extensions to the data type can happen in other modules.
