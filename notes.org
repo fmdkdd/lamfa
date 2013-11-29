@@ -2,6 +2,7 @@ The monadic interpreter is mostly taken from [[http://homepages.inf.ed.ac.uk/wad
 
 Other related work:
 - [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]]
+  + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
 - [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]]
 
 * Downsides to the monadic interpreter approach for modularity
@@ -75,3 +76,17 @@ mechanism is there, we could hide it with sugar.
 
 [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]] solves the problem in a modular
 way: extensions to the data type can happen in other modules.
+
+* Facets as a monad
+If the instrumentation of the interpreter was entirely confined to a
+monad, it would be the epitome of modularity (bar the two first points
+above).
+
+Can this be achieved?  Can we embed the faceted evaluation inside a
+monad?
+
+The `FacetMonad` could hold a full interpreter with duplicated
+environment, store and program counter.  But that would mean
+duplicating the standard rules.  And that means having a second full
+interpreter with faceted evaluation ... so you just duplicate, not
+really “instrumentation in a modular fashion”.
