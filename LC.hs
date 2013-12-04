@@ -224,3 +224,21 @@ facetTest1 = (If (Facet (1,True) (Bol True) (Bol False)) (Con 42) (Con 24))
 
 -- assert facetTest1 ==
 facetTest2 = (Ref (Con 843))
+
+fentonTest = (Let "x" (Ref (Facet (1,True) (Bol True) (Bot)))
+              (Let "y" (Ref (Bol True))
+               (Let "z" (Ref (Bol True))
+                (Seq
+                 (If (Deref (Var "x"))
+                  (Assign (Var "y") (Bol False))
+                  (Bot))
+                 (If (Deref (Var "y"))
+                  (Assign (Var "z") (Bol False))
+                  (Bot))))))
+
+-- let x = ref (<1 ? true : ⟂>) in (
+--   let y = ref true in (
+--     let z = ref true in (
+--       if !x then y := false;  # y = <1 ? false : true>
+--       if !y then z := false;  # z = <1 ? true : false>
+--         !z)))
