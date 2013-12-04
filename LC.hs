@@ -27,6 +27,7 @@ data Term = Bot
           | Assign Term Term
           | If Term Term Term
           | Let Name Term Term
+          | Seq Term Term
           | Facet Principal Term Term -- i13n
 
 data Value = Error String
@@ -154,7 +155,9 @@ interp (Assign l r) e =
 -- i13n
 interp expr@(If cond thn els) e = goIf # (e, expr)
 
+-- desugaring
 interp (Let id namedExpr body) e = interp (App (Lam id body) namedExpr) e
+interp (Seq left right) e = interp (Let "freevar" left right) e
 
 envLookup :: Name -> Environment -> Value
 envLookup x [] = (Error ("unbound " ++ show x))
@@ -210,6 +213,11 @@ termStore = (Deref (App (Lam "x" (App (Lam "y" (Var "x"))
                         (Ref (Con 1))))
 
 termLet = (Let "x" (Con 1) (Var "x"))
+termSeq = (Let "x" (Ref (Con 1))
+           (Seq
+            (Assign (Var "x") (Con 2))
+            ((Deref (Var "x")))))
+
 
 -- assert facetTest1 == (Facet (1,True) (Con 42) (Con 24))
 facetTest1 = (If (Facet (1,True) (Bol True) (Bol False)) (Con 42) (Con 24))
