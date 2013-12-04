@@ -18,7 +18,7 @@ type ProgCounter = [Principal] -- i13n
 
 data Term = Bot
           | Con Int
-          | Boolean Bool
+          | Bol Bool
           | Var Name
           | Lam Name Term
           | App Term Term
@@ -32,7 +32,7 @@ data Term = Bot
 data Value = Error String
            | Bottom
            | Constant Int
-           | BoolConstant Bool
+           | Boolean Bool
            | Address Int
            | Closure (Value -> M Value)
            | FacetV Principal Value Value -- i13n
@@ -55,7 +55,7 @@ instance Eq Value where
   Error s1 == Error s2               = s1 == s2
   Bottom == Bottom                   = True
   Constant i1 == Constant i2         = i1 == i2
-  BoolConstant b1 == BoolConstant b2 = b1 == b2
+  Boolean b1 == Boolean b2 = b1 == b2
   Address i1 == Address i2           = i1 == i2
   Closure f == Closure g             = False
   FacetV p v1 v2 == FacetV q w1 w2   = p == q && v1 == w1 && v2 == w2 -- i13n
@@ -64,7 +64,7 @@ instance Show Value where
   show (Error s)        = "<Error> " ++ show s
   show Bottom           = "<bottom>"
   show (Constant i)     = show i
-  show (BoolConstant b) = show b
+  show (Boolean b) = show b
   show (Address i)      = "<address> " ++ show i
   show (Closure f)      = "<function>"
   show (FacetV p v1 v2) = "(FacetV: " ++ show p ++ ", " ++ show v1 ++ ", " ++ show v2 ++ ")" -- i13n
@@ -87,16 +87,16 @@ goIf (e, (If cond thn els)) =
   do b <- interp cond e
      case b of
        Bottom -> return Bottom
-       (BoolConstant b) -> if b then interp thn e
+       (Boolean b) -> if b then interp thn e
                                 else interp els e
 
 -- i13n
 goIfAdv proceed args@(e, (If cond thn els)) =
   do b <- interp cond e
      case b of
-      (FacetV p (BoolConstant vH) (BoolConstant vL)) ->
-        do eH <- interp (If (Boolean vH) thn els) e
-           eL <- interp (If (Boolean vL) thn els) e
+      (FacetV p (Boolean vH) (Boolean vL)) ->
+        do eH <- interp (If (Bol vH) thn els) e
+           eL <- interp (If (Bol vL) thn els) e
            return (FacetV p eH eL)
       otherwise -> proceed args
 
@@ -123,7 +123,7 @@ goRefAdv proceed args@(e, (Ref t)) =
 interp :: Term -> Environment -> M Value
 interp Bot e         = return Bottom
 interp (Con i) e     = return (Constant i)
-interp (Boolean b) e = return (BoolConstant b)
+interp (Bol b) e = return (Boolean b)
 interp (Var x) e     = return (envLookup x e)
 interp (Lam x v) e   = return (Closure (\a -> interp v ((x,a):e)))
 
@@ -210,7 +210,7 @@ termStore = (Deref (App (Lam "x" (App (Lam "y" (Var "x"))
                         (Ref (Con 1))))
 
 -- assert facetTest1 == (Facet (1,True) (Con 42) (Con 24))
-facetTest1 = (If (Facet (1,True) (Boolean True) (Boolean False)) (Con 42) (Con 24))
+facetTest1 = (If (Facet (1,True) (Bol True) (Bol False)) (Con 42) (Con 24))
 
 -- assert facetTest1 ==
 facetTest2 = (Ref (Con 843))
