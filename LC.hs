@@ -209,6 +209,8 @@ termStore = (Deref (App (Lam "x" (App (Lam "y" (Var "x"))
                                       (Assign (Var "x") (Con 2))))
                         (Ref (Con 1))))
 
+termLet = (Let "x" (Con 1) (Var "x"))
+
 -- assert facetTest1 == (Facet (1,True) (Con 42) (Con 24))
 facetTest1 = (If (Facet (1,True) (Bol True) (Bol False)) (Con 42) (Con 24))
 
