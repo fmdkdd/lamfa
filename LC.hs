@@ -13,8 +13,6 @@ import Debug.Trace
 
 type Name      = String
 type Address   = Int
-type Principal = (Int, Bool) -- i13n
-type ProgCounter = [Principal] -- i13n
 
 data Term = Bot
           | Con Int
@@ -39,18 +37,13 @@ data Value = Error String
            | FacetV Principal Value Value -- i13n
    deriving Typeable
 
+type Principal = (Int, Bool) -- i13n
+
 -- i13n
 createFacetValue :: ProgCounter -> Value -> Value -> Value
 createFacetValue [] vH vL                 = vH
 createFacetValue (k@(_,True):rest)  vH vL = FacetV k (createFacetValue rest vH vL) vL
 createFacetValue (k@(_,False):rest) vH vL = FacetV k vL (createFacetValue rest vH vL)
-
--- data TermA = ...
--- data TermR = ...
--- data TermF = ...
-
--- class InterpC t where
---   interpC :: Term -> Environment -> MValue
 
 instance Eq Value where
   Error s1 == Error s2               = s1 == s2
@@ -72,6 +65,7 @@ instance Show Value where
 
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
+type ProgCounter = [Principal] -- i13n
 
 -- i13n
 type M a = AOT (StateT ProgCounter (StateT Store Identity)) a
@@ -85,46 +79,10 @@ runM m pc s = runIdentity (runStateT (runStateT (runAOT prog) pc) s)
                  deploy (aspect (pcCall goAssign) goAssignAdv) -- i13n
                  m
 
-goIf :: (Environment, Term) -> M Value
-goIf (e, (If cond thn els)) =
-  do b <- interp cond e
-     case b of
-       Bottom -> return Bottom
-       (Boolean b) -> if b then interp thn e
-                                else interp els e
-
--- i13n
-goIfAdv proceed args@(e, (If cond thn els)) =
-  do b <- interp cond e
-     case b of
-      (FacetV p (Boolean vH) (Boolean vL)) ->
-        do eH <- interp (If (Bol vH) thn els) e
-           eL <- interp (If (Bol vL) thn els) e
-           return (FacetV p eH eL)
-      otherwise -> proceed args
-
-goRef :: (Environment, Term) -> M Value
-goRef (e,(Ref t)) =
-  do v <- interp t e
-     store <- lift $ lift $ get
-     let addr = length store
-     (lift . lift . put) ((addr,v):store)
-     return (Address addr)
-
--- i13n
-goRefAdv proceed args@(e, (Ref t)) =
-  do result@(Address addr) <- proceed args
-     progCounter <- get
-     store <- lift $ lift $ get
-     let v = storeLookup addr store
-     let fv = (createFacetValue progCounter v Bottom)
-     (lift . lift . put) (storeReplace addr fv store)
-     return result
-
 interp :: Term -> Environment -> M Value
 interp Bot e         = return Bottom
 interp (Con i) e     = return (Constant i)
-interp (Bol b) e = return (Boolean b)
+interp (Bol b) e     = return (Boolean b)
 interp (Var x) e     = return (envLookup x e)
 interp (Lam x v) e   = return (Closure (\a -> interp v ((x,a):e)))
 
@@ -140,8 +98,7 @@ interp (App t u) e =
      a <- interp u e
      apply f a
 
--- i13n
-interp expr@(Ref t) e = goRef # (e, expr)
+interp expr@(Ref t) e = goRef # (e, expr) -- i13n
 
 interp (Deref t) e =
   do v <- interp t e
@@ -152,30 +109,71 @@ interp (Assign l r) e =
      rv <- interp r e
      assign lv rv
 
--- i13n
-interp expr@(If cond thn els) e = goIf # (e, expr)
+interp expr@(If cond thn els) e = goIf # (e, expr) -- i13n
 
 -- desugaring
 interp (Let id namedExpr body) e = interp (App (Lam id body) namedExpr) e
-interp (Seq left right) e = interp (Let "freevar" left right) e
+interp (Seq left right) e        = interp (Let "freevar" left right) e
 
-envLookup :: Name -> Environment -> Value
-envLookup x [] = (Error ("unbound " ++ show x))
-envLookup x ((y,b):e) = if x == y then b else envLookup x e
 
-storeLookup :: Address -> Store -> Value
-storeLookup a [] = (Error ("not in store " ++ show a))
-storeLookup a ((b,v):s) = if a == b then v else storeLookup a s
+-- "open" rules and advices
+-- implicit i13n
 
-storeReplace :: Address -> Value -> Store -> Store
-storeReplace a v [] = []
-storeReplace a v ((b,w):s) = if a == b then ((a,v):s)
-                             else ((b,w):(storeReplace a v s))
+------------------------------ REF
+goRef :: (Environment, Term) -> M Value
+goRef (e,(Ref t)) =
+  do v <- interp t e
+     store <- lift $ lift $ get
+     let addr = length store
+     (lift . lift . put) ((addr,v):store)
+     return (Address addr)
 
-apply :: Value -> Value -> M Value
-apply (Closure f) a = f a
-apply Bottom _      = return Bottom
-apply _ _           = return (Error "apply: not a closure or bottom")
+goRefAdv proceed args@(e, (Ref t)) =
+  do result@(Address addr) <- proceed args
+     progCounter <- get
+     store <- lift $ lift $ get
+     let v = storeLookup addr store
+     let fv = (createFacetValue progCounter v Bottom)
+     (lift . lift . put) (storeReplace addr fv store)
+     return result
+
+
+------------------------------ IF
+goIf :: (Environment, Term) -> M Value
+goIf (e, (If cond thn els)) =
+  do b <- interp cond e
+     case b of
+       Bottom -> return Bottom
+       (Boolean b) -> if b then interp thn e
+                      else interp els e
+
+goIfAdv proceed args@(e, (If cond thn els)) =
+  do b <- interp cond e
+     case b of
+      (FacetV p (Boolean vH) (Boolean vL)) ->
+        do eH <- interp (If (Bol vH) thn els) e
+           eL <- interp (If (Bol vL) thn els) e
+           return (FacetV p eH eL)
+
+      (FacetV p (Boolean vH) Bottom) ->
+        do eH <- interp (If (Bol vH) thn els) e
+           return (FacetV p eH Bottom)
+
+      (FacetV p Bottom (Boolean vL)) ->
+        do eL <- interp (If (Bol vL) thn els) e
+           return (FacetV p Bottom eL)
+
+      (FacetV p Bottom Bottom) ->
+          return (FacetV p Bottom Bottom)
+
+      otherwise -> proceed args
+
+
+-- helpers
+
+------------------------------ DEREF
+deref :: Value -> M Value
+deref value = goDeref # value -- i13n
 
 -- i13n
 goDeref :: Value -> M Value
@@ -206,8 +204,10 @@ goDerefAdvHelper f@(FacetV p@(_,neg) vH vL) (h:rest) =
             else deref vL
     else goDerefAdvHelper f rest
 
-deref :: Value -> M Value
-deref value = goDeref # value -- i13n
+
+------------------------------ ASSIGN
+assign :: Value -> Value -> M Value
+assign left right = goAssign # (left, right) -- i13n
 
 -- i13n
 goAssign :: (Value, Value) -> M Value
@@ -241,8 +241,26 @@ goAssignAdv proceed args@(left, right) =
 
       otherwise -> proceed args
 
-assign :: Value -> Value -> M Value
-assign left right = goAssign # (left, right) -- i13n
+
+envLookup :: Name -> Environment -> Value
+envLookup x [] = (Error ("unbound " ++ show x))
+envLookup x ((y,b):e) = if x == y then b else envLookup x e
+
+storeLookup :: Address -> Store -> Value
+storeLookup a [] = (Error ("not in store " ++ show a))
+storeLookup a ((b,v):s) = if a == b then v else storeLookup a s
+
+storeReplace :: Address -> Value -> Store -> Store
+storeReplace a v [] = []
+storeReplace a v ((b,w):s) = if a == b then ((a,v):s)
+                             else ((b,w):(storeReplace a v s))
+
+apply :: Value -> Value -> M Value
+apply (Closure f) a = f a
+apply Bottom _      = return Bottom
+apply _ _           = return (Error "apply: not a closure or bottom")
+
+-- testing
 
 -- use implicit parameters??
 
@@ -261,7 +279,7 @@ runWithPC t pc = runM (interp t []) pc []
 -- Tests, we skip them for now!
 
 term0 = (App (Lam "x" (Var "x")) (Con 10))
-termBot = (App (Bot) (Con 1))
+termBot = (App Bot (Con 1))
 termStore = (Deref (App (Lam "x" (App (Lam "y" (Var "x"))
                                       (Assign (Var "x") (Con 2))))
                         (Ref (Con 1))))
