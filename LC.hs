@@ -157,7 +157,6 @@ goDeref t =
       Bottom      -> return Bottom
       (Address a) -> do store <- lift $ lift $ get
                         return (storeLookup a store)
-      otherwise   -> return (Error "deref: not an address or bottom")
 
 -- i13n
 goDerefAdv proceed t =
