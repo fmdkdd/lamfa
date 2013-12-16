@@ -27,6 +27,7 @@ data Term = Bot
           | Let Name Term Term
           | Seq Term Term
           | Facet Principal Term Term -- i13n
+   deriving Show
 
 data Value = Error String
            | Bottom
