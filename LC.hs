@@ -190,8 +190,6 @@ goAssign (left, right) =
                         (lift . lift . put) (storeReplace a right store)
                         return right
 
-      otherwise -> return (Error "assign: not an address or bottom")
-
 -- i13n
 goAssignAdv proceed args@(left, right) =
     case left of
@@ -223,8 +221,6 @@ goApply (v1, v2) =
       Bottom -> return Bottom
 
       (Closure x body env) -> interp body ((x,v2):env)
-
-      otherwise -> return (Error "apply: not a closure or bottom")
 
 goApplyAdv proceed args@(v1, v2) =
     case v1 of
