@@ -38,13 +38,14 @@ data Value = Error String
            | FacetV Principal Value Value -- i13n
    deriving Typeable
 
-type Principal = (Int, Bool) -- i13n
+type Principal = Int -- i13n
+type Branch    = (Principal,Bool) -- i13n
 
 -- i13n
 createFacetValue :: ProgCounter -> Value -> Value -> Value
 createFacetValue [] vH vL                 = vH
-createFacetValue (k@(_,True):rest)  vH vL = FacetV k (createFacetValue rest vH vL) vL
-createFacetValue (k@(_,False):rest) vH vL = FacetV k vL (createFacetValue rest vH vL)
+createFacetValue ((k,True):rest)  vH vL = FacetV k (createFacetValue rest vH vL) vL
+createFacetValue ((k,False):rest) vH vL = FacetV k vL (createFacetValue rest vH vL)
 
 instance Eq Value where
   Error s1 == Error s2               = s1 == s2
@@ -68,7 +69,7 @@ instance Show Value where
 
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
-type ProgCounter = [Principal] -- i13n
+type ProgCounter = [Branch] -- i13n
 
 -- i13n
 type M a = AOT (StateT ProgCounter (StateT Store Identity)) a
@@ -166,18 +167,14 @@ goDerefAdv proceed t =
       otherwise -> proceed t
 
 goDerefAdvHelper :: Value -> ProgCounter -> M Value
-goDerefAdvHelper (FacetV p vH vL) [] =
-    do vh <- deref vH
-       vl <- deref vL
-       return (createFacetValue [p] vh vl)
-
-goDerefAdvHelper f@(FacetV p@(_,neg) vH vL) (h:rest) =
-    if h == p
-       then if neg == True
-            then deref vH
-            else deref vL
-    else goDerefAdvHelper f rest
-
+goDerefAdvHelper (FacetV p vH vL) progCounter =
+    if (p,True) `elem` progCounter
+    then deref vH
+    else if (p,False) `elem` progCounter
+         then deref vL
+         else do vH' <- deref vH
+                 vL' <- deref vL
+                 return (createFacetValue [(p,True)] vH' vL')
 
 ------------------------------ ASSIGN
 assign :: Value -> Value -> M Value
@@ -198,13 +195,13 @@ goAssign (left, right) =
 -- i13n
 goAssignAdv proceed args@(left, right) =
     case left of
-      (FacetV (p,neg) vH vL) -> do progCounter <- get
-                                   put ((p,neg):progCounter)
-                                   r1 <- assign vH right
-                                   put ((p, not neg):progCounter)
-                                   r2 <- assign vL right
-                                   put progCounter
-                                   return right
+      (FacetV p vH vL) -> do progCounter <- get
+                             put ((p,True):progCounter)
+                             r1 <- assign vH right
+                             put ((p,False):progCounter)
+                             r2 <- assign vL right
+                             put progCounter
+                             return right
 
       (Address a) -> do store <- lift $ lift $ get
                         progCounter <- get
@@ -231,18 +228,18 @@ goApply (v1, v2) =
 
 goApplyAdv proceed args@(v1, v2) =
     case v1 of
-      (FacetV (p,neg) vH vL) -> do progCounter <- get
-                                   if (p,True) `elem` progCounter
-                                   then apply vH v2
-                                   else
-                                       if (p,False) `elem` progCounter
-                                       then apply vL v2
-                                       else do put ((p,True):progCounter)
-                                               vH' <- apply vH v2
-                                               put ((p,False):progCounter)
-                                               vL' <- apply vL v2
-                                               put progCounter
-                                               return (createFacetValue [(p,neg)] vH' vL')
+      (FacetV p vH vL) -> do progCounter <- get
+                             if (p,True) `elem` progCounter
+                             then apply vH v2
+                             else
+                                 if (p,False) `elem` progCounter
+                                 then apply vL v2
+                                 else do put ((p,True):progCounter)
+                                         vH' <- apply vH v2
+                                         put ((p,False):progCounter)
+                                         vL' <- apply vL v2
+                                         put progCounter
+                                         return (createFacetValue [(p,True)] vH' vL')
 
       otherwise -> proceed args
 
@@ -294,7 +291,7 @@ termSeq = (Let "x" (Ref (Con 1))
 
 
 -- assert facetTest1 == (Facet (1,True) (Con 42) (Con 24))
-facetTest1 = (If (Facet (1,True) (Bol True) (Bol False)) (Con 42) (Con 24))
+facetTest1 = (If (Facet 1 (Bol True) (Bol False)) (Con 42) (Con 24))
 
 -- assert facetTest1 ==
 facetTest2 = (Ref (Con 843))
@@ -315,7 +312,7 @@ fentonTestRaw = (Let "x" (Ref (Bol True))
                       Bot))
                     (Deref (Var "z"))))))
 
-fentonTest = (Let "x" (Ref (Facet (1,True) (Bol True) Bot))
+fentonTest = (Let "x" (Ref (Facet 1 (Bol True) Bot))
               (Let "y" (Ref (Bol True))
                (Let "z" (Ref (Bol True))
                 (Seq
