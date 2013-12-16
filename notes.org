@@ -90,3 +90,57 @@ environment, store and program counter.  But that would mean
 duplicating the standard rules.  And that means having a second full
 interpreter with faceted evaluation ... so you just duplicate, not
 really “instrumentation in a modular fashion”.
+* Opening `interp`
+Suggested by Rémi.
+
+Instead of opening each case individually, `goRef` or `goIf` and so
+on, we can open `interp` directly.
+
+#+BEGIN_SRC haskell
+interp t e = goInterp # (t,e)
+
+goInterp (Bot,e) = return Bottom
+goInterp ((Con i),e) = return (Constant i)
+...
+#+END_SRC
+
+If the pointcut language has an `if` construct that can match on
+arguments, we can dispatch advices depending on the term argument.
+
+#+BEGIN_SRC haskell
+deploy (aspect (and (pcCall goInterp) (match (Ref t))) goIfAdv)
+#+END_SRC
+
+Our pointcut language does not allow us to match like this, but at the
+very least we could contain advices in a `goInterpAdv` function.
+
+#+BEGIN_SRC haskell
+deploy (aspect (and (pcCall goInterp)) goInterpAdv)
+
+goInterpAdv proceed args@((If cond thn els), e) =
+  -- code for goIfAdv
+
+-- fall through
+goInterpAdv proceed = proceed
+#+END_SRC
+
+* Class types approach
+Another suggestion by Rémi.
+
+#+BEGIN_SRC haskell
+interp :: Dom d => Term -> d
+interp (Add l r) = myAdd (interp l) (interp r)
+
+class Dom d where
+  myAdd :: d -> d -> d
+
+instance Dom Int where
+  myAdd = +
+
+instance Dom OddOrEven where
+  myAdd = xor
+#+END_SRC
+
+Here you must generalize the interpreter, to accomodate multiple
+domains.  But at least the generalization is done using types: the
+overhead is minimal.  Though you still need to have indirect calls.

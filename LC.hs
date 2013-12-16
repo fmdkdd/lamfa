@@ -79,8 +79,10 @@ type M a = AOT (StateT ProgCounter (StateT Store Identity)) a
 -- i13n
 runM :: M Value -> ProgCounter -> Store -> ((Value, ProgCounter), Store)
 runM m pc s = runIdentity (runStateT (runStateT (runAOT prog) pc) s)
- where prog = do deploy (aspect (pcCall goIf) goIfAdv) -- i13n
-                 deploy (aspect (pcCall goRef) goRefAdv) -- i13n
+ where prog = do deploy (aspect (pcCall goIf) goIfAdv)         -- i13n
+                 deploy (aspect (pcCall goRef) goRefAdv)       -- i13n
+                 deploy (aspect (pcCall goDeref) goDerefAdv)   -- i13n
+                 deploy (aspect (pcCall goAssign) goAssignAdv) -- i13n
                  m
 
 goIf :: (Environment, Term) -> M Value
@@ -115,10 +117,8 @@ goRefAdv proceed args@(e, (Ref t)) =
      progCounter <- get
      store <- lift $ lift $ get
      let v = storeLookup addr store
-     (lift . lift . put) (storeReplace
-                           addr
-                           (createFacetValue progCounter v Bottom)
-                           store)
+     let fv = (createFacetValue progCounter v Bottom)
+     (lift . lift . put) (storeReplace addr fv store)
      return result
 
 interp :: Term -> Environment -> M Value
@@ -169,26 +169,80 @@ storeLookup a ((b,v):s) = if a == b then v else storeLookup a s
 
 storeReplace :: Address -> Value -> Store -> Store
 storeReplace a v [] = []
-storeReplace a v ((b,w):s) = if a == b then ((a,v):s) else storeReplace a v s
+storeReplace a v ((b,w):s) = if a == b then ((a,v):s)
+                             else ((b,w):(storeReplace a v s))
 
 apply :: Value -> Value -> M Value
 apply (Closure f) a = f a
 apply Bottom _      = return Bottom
 apply _ _           = return (Error "apply: not a closure or bottom")
 
+-- i13n
+goDeref :: Value -> M Value
+goDeref t =
+    case t of
+      Bottom      -> return Bottom
+      (Address a) -> do store <- lift $ lift $ get
+                        return (storeLookup a store)
+      otherwise   -> return (Error "deref: not an address or bottom")
+
+-- i13n
+goDerefAdv proceed t =
+    case t of
+      (FacetV p vH vL) -> do progCounter <- get
+                             goDerefAdvHelper t progCounter
+      otherwise -> proceed t
+
+goDerefAdvHelper :: Value -> ProgCounter -> M Value
+goDerefAdvHelper (FacetV p vH vL) [] =
+    do vh <- deref vH
+       vl <- deref vL
+       return (createFacetValue [p] vh vl)
+
+goDerefAdvHelper f@(FacetV p@(_,neg) vH vL) (h:rest) =
+    if h == p
+       then if neg == True
+            then deref vH
+            else deref vL
+    else goDerefAdvHelper f rest
+
 deref :: Value -> M Value
-deref Bottom      = return Bottom
-deref (Address a) = do store <- lift $ lift $ get
-                       return (storeLookup a store)
-deref _           = return (Error "deref: not an address or bottom")
+deref value = goDeref # value -- i13n
+
+-- i13n
+goAssign :: (Value, Value) -> M Value
+goAssign (left, right) =
+    case left of
+      Bottom -> return Bottom
+
+      (Address a) -> do store <- lift $ lift $ get
+                        (lift . lift . put) (storeReplace a right store)
+                        return right
+
+      otherwise -> return (Error "assign: not an address or bottom")
+
+-- i13n
+goAssignAdv proceed args@(left, right) =
+    case left of
+      (FacetV (p,neg) vH vL) -> do progCounter <- get
+                                   put ((p,neg):progCounter)
+                                   r1 <- assign vH right
+                                   put ((p, not neg):progCounter)
+                                   r2 <- assign vL right
+                                   put progCounter
+                                   return right
+
+      (Address a) -> do store <- lift $ lift $ get
+                        progCounter <- get
+                        let v = storeLookup a store
+                        let fv = createFacetValue progCounter right v
+                        (lift . lift . put) (storeReplace a fv store)
+                        return right
+
+      otherwise -> proceed args
 
 assign :: Value -> Value -> M Value
-assign Bottom _      = return Bottom
-assign (Address a) v = do store <- lift $ lift $ get
-                          (lift . lift . put) (storeReplace a v store)
-                          return v
-
-assign _ _ = return (Error "assign: not an address or bottom")
+assign left right = goAssign # (left, right) -- i13n
 
 -- use implicit parameters??
 
@@ -225,16 +279,34 @@ facetTest1 = (If (Facet (1,True) (Bol True) (Bol False)) (Con 42) (Con 24))
 -- assert facetTest1 ==
 facetTest2 = (Ref (Con 843))
 
-fentonTest = (Let "x" (Ref (Facet (1,True) (Bol True) (Bot)))
+facetTest3 = (Let "x" (Ref (Bol True))
+              (Assign (Var "x") (Bol False)))
+
+fentonTestRaw = (Let "x" (Ref (Bol True))
+                 (Let "y" (Ref (Bol True))
+                  (Let "z" (Ref (Bol True))
+                   (Seq
+                    (Seq
+                     (If (Deref (Var "x"))
+                      (Assign (Var "y") (Bol False))
+                      Bot)
+                     (If (Deref (Var "y"))
+                      (Assign (Var "z") (Bol False))
+                      Bot))
+                    (Deref (Var "z"))))))
+
+fentonTest = (Let "x" (Ref (Facet (1,True) (Bol True) Bot))
               (Let "y" (Ref (Bol True))
                (Let "z" (Ref (Bol True))
                 (Seq
-                 (If (Deref (Var "x"))
-                  (Assign (Var "y") (Bol False))
-                  (Bot))
-                 (If (Deref (Var "y"))
-                  (Assign (Var "z") (Bol False))
-                  (Bot))))))
+                 (Seq
+                  (If (Deref (Var "x"))
+                   (Assign (Var "y") (Bol False))
+                   Bot)
+                  (If (Deref (Var "y"))
+                   (Assign (Var "z") (Bol False))
+                   Bot))
+                 (Deref (Var "z"))))))
 
 -- let x = ref (<1 ? true : ⟂>) in (
 --   let y = ref true in (
