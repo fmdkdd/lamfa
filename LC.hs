@@ -34,7 +34,7 @@ data Value = Error String
            | Constant Int
            | Boolean Bool
            | Address Int
-           | Closure (Value -> M Value)
+           | Closure Name Term Environment
            | FacetV Principal Value Value -- i13n
    deriving Typeable
 
@@ -52,17 +52,19 @@ instance Eq Value where
   Constant i1 == Constant i2         = i1 == i2
   Boolean b1 == Boolean b2 = b1 == b2
   Address i1 == Address i2           = i1 == i2
-  Closure f == Closure g             = False
+  Closure _ _ _ == Closure _ _ _     = False
   FacetV p v1 v2 == FacetV q w1 w2   = p == q && v1 == w1 && v2 == w2 -- i13n
 
 instance Show Value where
-  show (Error s)        = "<Error> " ++ show s
-  show Bottom           = "<bottom>"
-  show (Constant i)     = show i
-  show (Boolean b) = show b
-  show (Address i)      = "<address> " ++ show i
-  show (Closure f)      = "<function>"
-  show (FacetV p v1 v2) = "(FacetV: " ++ show p ++ ", " ++ show v1 ++ ", " ++ show v2 ++ ")" -- i13n
+  show (Error s)            = "<Error> " ++ show s
+  show Bottom               = "<bottom>"
+  show (Constant i)         = show i
+  show (Boolean b)          = show b
+  show (Address i)          = "<address> " ++ show i
+  show (Closure "x" (Lam "y" (Var "x")) _) = show True
+  show (Closure "x" (Lam "y" (Var "y")) _) = show False
+  show (Closure _ _ _)      = "<closure>"
+  show (FacetV p v1 v2)     = "{" ++ show p ++ ", " ++ show v1 ++ ", " ++ show v2 ++ "}" -- i13n
 
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
@@ -74,18 +76,17 @@ type M a = AOT (StateT ProgCounter (StateT Store Identity)) a
 -- i13n
 runM :: M Value -> ProgCounter -> Store -> ((Value, ProgCounter), Store)
 runM m pc s = runIdentity (runStateT (runStateT (runAOT prog) pc) s)
- where prog = do deploy (aspect (pcCall goIf) goIfAdv)         -- i13n
-                 deploy (aspect (pcCall goRef) goRefAdv)       -- i13n
+ where prog = do deploy (aspect (pcCall goRef) goRefAdv)       -- i13n
                  deploy (aspect (pcCall goDeref) goDerefAdv)   -- i13n
                  deploy (aspect (pcCall goAssign) goAssignAdv) -- i13n
+                 deploy (aspect (pcCall goApply) goApplyAdv)   -- i13n
                  m
 
 interp :: Term -> Environment -> M Value
 interp Bot e         = return Bottom
 interp (Con i) e     = return (Constant i)
-interp (Bol b) e     = return (Boolean b)
 interp (Var x) e     = return (envLookup x e)
-interp (Lam x v) e   = return (Closure (\a -> interp v ((x,a):e)))
+interp (Lam x v) e   = return (Closure x v e)
 
 -- i13n
 -- should yield terms rather than values, see rule F-IF-SPLIT
@@ -110,12 +111,16 @@ interp (Assign l r) e =
      rv <- interp r e
      assign lv rv
 
-interp expr@(If cond thn els) e = goIf # (e, expr) -- i13n
-
 -- desugaring
 interp (Let id namedExpr body) e = interp (App (Lam id body) namedExpr) e
 interp (Seq left right) e        = interp (Let "freevar" left right) e
-
+interp (If cond thn els) e       = interp (App
+                                           (App
+                                            (App cond (Lam "d" thn))
+                                            (Lam "d" els))
+                                           (Lam "x" (Var "x"))) e
+interp (Bol True) e              = interp (Lam "x" (Lam "y" (Var "x"))) e
+interp (Bol False) e             = interp (Lam "x" (Lam "y" (Var "y"))) e
 
 -- "open" rules and advices
 -- implicit i13n
@@ -137,38 +142,6 @@ goRefAdv proceed args@(e, (Ref t)) =
      let fv = (createFacetValue progCounter v Bottom)
      (lift . lift . put) (storeReplace addr fv store)
      return result
-
-
------------------------------- IF
-goIf :: (Environment, Term) -> M Value
-goIf (e, (If cond thn els)) =
-  do b <- interp cond e
-     case b of
-       Bottom -> return Bottom
-       (Boolean b) -> if b then interp thn e
-                      else interp els e
-
-goIfAdv proceed args@(e, (If cond thn els)) =
-  do b <- interp cond e
-     case b of
-      (FacetV p (Boolean vH) (Boolean vL)) ->
-        do eH <- interp (If (Bol vH) thn els) e
-           eL <- interp (If (Bol vL) thn els) e
-           return (FacetV p eH eL)
-
-      (FacetV p (Boolean vH) Bottom) ->
-        do eH <- interp (If (Bol vH) thn els) e
-           return (FacetV p eH Bottom)
-
-      (FacetV p Bottom (Boolean vL)) ->
-        do eL <- interp (If (Bol vL) thn els) e
-           return (FacetV p Bottom eL)
-
-      (FacetV p Bottom Bottom) ->
-          return (FacetV p Bottom Bottom)
-
-      otherwise -> proceed args
-
 
 -- helpers
 
@@ -243,23 +216,51 @@ goAssignAdv proceed args@(left, right) =
       otherwise -> proceed args
 
 
+------------------------------ APPLY
+apply :: Value -> Value -> M Value
+apply v1 v2 = goApply # (v1, v2) -- i13n
+
+goApply :: (Value, Value) -> M Value
+goApply (v1, v2) =
+    case v1 of
+      Bottom -> return Bottom
+
+      (Closure x body env) -> interp body ((x,v2):env)
+
+      otherwise -> return (Error "apply: not a closure or bottom")
+
+goApplyAdv proceed args@(v1, v2) =
+    case v1 of
+      (FacetV (p,neg) vH vL) -> do progCounter <- get
+                                   if (p,True) `elem` progCounter
+                                   then apply vH v2
+                                   else
+                                       if (p,False) `elem` progCounter
+                                       then apply vL v2
+                                       else do put ((p,True):progCounter)
+                                               vH' <- apply vH v2
+                                               put ((p,False):progCounter)
+                                               vL' <- apply vL v2
+                                               put progCounter
+                                               return (createFacetValue [(p,neg)] vH' vL')
+
+      otherwise -> proceed args
+
+-- other helpers
 envLookup :: Name -> Environment -> Value
-envLookup x [] = (Error ("unbound " ++ show x))
-envLookup x ((y,b):e) = if x == y then b else envLookup x e
+envLookup x env = case (lookup x env) of
+                    Just v -> v
+                    Nothing -> (Error ("unbound " ++ show x))
 
 storeLookup :: Address -> Store -> Value
-storeLookup a [] = (Error ("not in store " ++ show a))
-storeLookup a ((b,v):s) = if a == b then v else storeLookup a s
+storeLookup a store = case (lookup a store) of
+                        Just v -> v
+                        Nothing -> (Error ("not in store " ++ show a))
 
 storeReplace :: Address -> Value -> Store -> Store
 storeReplace a v [] = []
 storeReplace a v ((b,w):s) = if a == b then ((a,v):s)
                              else ((b,w):(storeReplace a v s))
-
-apply :: Value -> Value -> M Value
-apply (Closure f) a = f a
-apply Bottom _      = return Bottom
-apply _ _           = return (Error "apply: not a closure or bottom")
 
 -- testing
 
