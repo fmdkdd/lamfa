@@ -51,7 +51,7 @@ instance Eq Value where
   Error s1 == Error s2               = s1 == s2
   Bottom == Bottom                   = True
   Constant i1 == Constant i2         = i1 == i2
-  Boolean b1 == Boolean b2 = b1 == b2
+  Boolean b1 == Boolean b2           = b1 == b2
   Address i1 == Address i2           = i1 == i2
   Closure _ _ _ == Closure _ _ _     = False
   FacetV p v1 v2 == FacetV q w1 w2   = p == q && v1 == w1 && v2 == w2 -- i13n
