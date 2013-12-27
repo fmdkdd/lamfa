@@ -107,6 +107,9 @@ goInterp ((Con i),e) = return (Constant i)
 If the pointcut language has an `if` construct that can match on
 arguments, we can dispatch advices depending on the term argument.
 
+I > We can use the RequirePC special pointcut. I added an example in the
+I > source code.
+
 #+BEGIN_SRC haskell
 deploy (aspect (and (pcCall goInterp) (match (Ref t))) goIfAdv)
 #+END_SRC
@@ -144,3 +147,96 @@ instance Dom OddOrEven where
 Here you must generalize the interpreter, to accomodate multiple
 domains.  But at least the generalization is done using types: the
 overhead is minimal.  Though you still need to have indirect calls.
+
+> Ismael: Some disadvantages of this approach are discussed in the
+Open Data Types paper, in Section 6.4.
+
+* Comments
+
+* (Ismael): I think we should enumerate all the required changes along their nature: data type extension, new case for functions, etc. Doing a diff on the LC-standard and LC-facet files yields the following:
+
+** Term is extended with the Facet variant
+** Value is extended with the FacetV variant
+** instance of Eq Value is updated with the FacetV variant
+** instance of Show Value is updated with the FacetV variant
+** New runM function
+** New case (Facet p t1 t2) added to interp
+** Case (Ref t) is modified by what it looks like an around advice
+** New case (Facet p t1 t2) added to helper function deref
+** In helper function assign, Case (Address a) is modified by what it looks like an around advice
+** New case (FacetV p vh vl) added to helper function assign
+** New case (FacetV p vh vl) added to helper function apply
+
+I propose that the contribution of the paper is a comparison or
+classification of the kinds of extensibility that are desirable for a
+modular instrumentation of a monadic interpreter. For extending data
+types we can use the Either approach of Hudak (or maybe both
+approaches are useful), and for adding cases we use AOP. Then we
+discuss the benefits/drawbacks of this approach vs the Open Data Types
+and Open Functions.
+
+What we bring to attention is that AOP is (unsurprisingly) helpful to
+define "open functions". Whereas the approach of Open Data... is less
+expressive because it lacks a pointcut language (or something along
+these lines).
+
+* Comparing LC-facets with LC.hs
+
+** Term is extended with the Facet variant
+** Value is extended with the FacetV variant
+** instance of Eq Value is updated with the FacetV variant
+** instance of Show Value is updated with the FacetV variant
+** New type M, now using AOT
+** New runM function, where all aspects are deployed
+** New case (Facet p t1 t2) added to helper function deref
+** In interp: Case (Ref t) is refactored adding a goRef function which is open to weaving
+** Similar change for deref function.
+** Similar change for assing function.
+** It would be more symmetric if all introductions of # were at the same level, e.g. at the interpreter.
+** Same change for apply
+
+Ismael >
+
+A conclusion for this simple analysis is that to add new cases to
+interp we also need to make it advisable, following Rèmi's suggestion
+outlined above. In other words, if we allow for new variants to Term,
+we *need* an open interp. I think this is not mutually exclusive with
+the goFoo pattern, because when extending some behavior we actually
+require access to the default implementation (e.g. in the (Ref t)
+case, we need proceed to refer to the goRef default implementation).
+
+Maybe this highlights the need for an extension of the pointcut
+language: to be able to target a function with a specific case, while
+still being able to refer to the default implementation by using
+proceed. Actually this can be done using RequirePC:
+
+* See file LC-ismael.hs
+
+* Using RequirePC to advice a particular case of goInterp
+
+#+BEGIN_SRC haskell
+-- Require PC for Ref case
+refPC :: Typeable1Monad m => RequirePC m (Term, Environment) b
+refPC = RequirePC $ return (\ jp -> case unsafeCoerce jp of
+                               (Jp _ _ ((Ref t, _))) -> return True
+                               _ -> return False)
+
+-- note the unsafeCoerce is actually safe because... *read TAOSD paper Section 4.1* 
+
+-- i13n
+runM :: M Value -> ProgCounter -> Store -> ((Value, ProgCounter), Store)
+runM m pc s = runIdentity (runStateT (runStateT (runAOT prog) pc) s)
+ where prog = do
+           -- deploy (aspect (pcCall goRef) goRefAdv)       -- i13n
+           deploy (aspect (pcAnd (pcCall goInterp) refPC) goRefAdv) 
+           deploy (aspect (pcCall goDeref) goDerefAdv)   -- i13n
+           deploy (aspect (pcCall goAssign) goAssignAdv) -- i13n
+           deploy (aspect (pcCall goApply) goApplyAdv)   -- i13n
+           m
+#+END_SRC
+
+* More comments: To me, the "epitome of modularity" would being able to something like what is sketched in LC-ismael-ideal.hs. It seems this can be achieved using some kind of generative programming. See comments in that file for the issues I've encountered so far...
+
+
+
+
