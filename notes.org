@@ -161,7 +161,8 @@ a diff on the LC-standard and LC-facet files yields the following:
 - Value is extended with the FacetV variant
 - instance of Eq Value is updated with the FacetV variant
 - instance of Show Value is updated with the FacetV variant
-- New runM function
+- Modification of type M (new StateT)
+- New runM function  (caused by the change to M)
 - New case (Facet p t1 t2) added to interp
 - Case (Ref t) is modified by what it looks like an around advice
 - New case (Facet p t1 t2) added to helper function deref
