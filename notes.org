@@ -5,8 +5,319 @@ Other related work:
   + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
 - [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]]
 
-* Downsides to the monadic interpreter approach for modularity
-** Explicit use of monads
+* The problem
+Say we have a monadic interpreter for a toy language.  We want to
+instrument this interpreter: modify the rules to create additional
+side effects, or even change the return value.
+
+Given the following interpreter for arithmetic expressions:
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int
+  data Value = Number Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Number i)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+#+END_SRC
+
+we want to add a new construct for pairs of integers.  The
+straightforward way is to extend the existing interpreter:
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int | Couple Int Int
+  data Value = Number Int | Pair Int Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Number i)
+  interp (Couple i1 i2) = (Pair i1 i2)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+  plus (Number a) (Pair i1 i2) = (Pair (a + i1) (a + i2))
+  plus (Pair i1 i2) (Number a) = (Pair (a + i1) (a + i2))
+#+END_SRC
+
+But the obvious downside of this approach is that we cannot make
+changes to the original interpreter without having to manually
+replicate these changes in the extended interpreter.  Replicating the
+changes is time-consuming and prone to error.
+
+Furthermore, the extended interpreter code makes no distinction
+between the original code and the extension code; the two are merged
+together.  Thus, to be able to reason about the changes brought by the
+extension, we must always compare both programs.  We cannot reason
+about the extension in isolation.
+
+These downsides are caused by the /accidental/ duplication of code for
+the original interpreter.  Conceptually, we want to reuse the behavior
+the orginal code provides, but not the code itself.  Copying the code
+is an easy way to reuse the original behavior, but bears the costs
+mentionned above: code replication and unability to reason locally.
+
+Is there a better way?  A /differential description/ of the extension
+eliminates both issues.  If we describe only the additions and changes
+to the original interpreter, we minimize code duplication, and promote
+local reasoning.
+
+** The expression problem
+
+First, let’s list the additions brought by our extension to the
+interpreter:
+
+- we add a new constructor =Couple= to the data type =Term=
+- we add a new constructor =Pair= to the data type =Value=
+- we add a new case =Couple= to the function =interp=
+- we add two new (symmetric) cases =Pair= to the function =plus=
+
+Now, what would a differential description of the extension to our
+interpreter look like?
+
+#+BEGIN_SRC haskell
+  extend data Term = Couple Int Int
+  extend data Value = Pair Int Int
+
+  extend interp (Couple i1 i2) = (Pair i1 i2)
+  extend plus (Number a) (Pair i1 i2) = (Pair (a + i1) (a + i2))
+  extend plus (Pair i1 i2) (Number a) = (Pair (a + i1) (a + i2))
+#+END_SRC
+
+These are all the additions brought by the extension to the original
+interpreter.  The new =extend= keyword allows us to:
+
+1. Extend data types with new constructors.
+2. Extend function definitions with new cases.
+
+How to extend both data types and functions in a program, without
+sacrificing modularity, is a problem known as the /expression problem/
+[Wadler].  This (imaginary) =extend= keyword is a solution; there are
+real solutions [[[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]]] (Instead of an
+=extend= keyword, they provide an =open= keyword to prefix to initial
+declarations of data types and functions.  One could also require both
+extended and original codes to include keywords.)
+
+** The expression problem, with a twist
+
+The expression problem is only concerned with /adding/ data types and
+functions, but when we instrument an interpreter, we will often want
+to /modify/ its behavior rather than just extend it.
+
+When we take modification into account, what does a differential
+description look like?
+
+First, let’s go back to the original interpreter, and modify its
+behavior.
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int
+  data Value = Number Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Number i)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+#+END_SRC
+
+Say we need to change the value returned by the interpretation of the
+term ‘Constant’.  We want to return a ‘Pair’ value instead of a single
+number, the second value being a default zero.  We would write the
+full version, with replication as:
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int
+  data Value = Number Int | Pair Int Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Pair i 0)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+#+END_SRC
+
+What would be the differential description of this change?
+
+#+BEGIN_SRC haskell
+  extend data Value = Pair Int Int
+
+  modify interp (Constant i) = (Pair i 0)
+#+END_SRC
+
+The keyword =modify= replaces the definition for the targeted case of
+=interp=.
+
+[What if we want to combine multiple modifications to the same case
+function? A: You’d have to have a clue about the precedence order to
+make sense of the result, but these problems are shared by other AOP
+applications.]
+
+** The modular instrumentation problem
+We have an interpreter I for a language L, and the source code for I.
+We want to instrument the interpreter I, by extending and modifying
+its behavior.  Namely, the instrumentation can:
+- add terms to the base language
+- add values to the base language
+- add new operations
+- alter the behavior of existing operations, or even suppress them
+  entirely.
+
+We constrain the instrumentation by imposing the following
+restrictions:
+
+- The instrumented interpreter I’ must still be able to execute
+  programs written in the language L.  The instrumentation cannot
+  remove or modify existing terms of the language.
+- The instrumentation must modify only a part of the original
+  interpreter operations.  Otherwise, the instrumented interpreter
+  may end up with semantics so different from the original interpreter
+  that it does not qualify as “instrumentation” anymore; it might as
+  well be another interpreter in its own right.
+
+The implementation of this instrumentation will give a new interpreter
+I’.  Ideally, this implementation should be as modular as possible; it
+should:
+- promote isolated reasoning,
+- minimize code replication and accidental complexity.  We should be
+  able to map the differential description of the instrumentation and
+  the code for its implementation.
+
+The /modular instrumentation problem/ is then: how to implement the
+instrumentation with the above constraints of modularity?
+
+Note that the changes may bring only additional side effects, and
+leave the original behavior unaltered.  How to recognize or enforce
+“side-effects only” instrumentation is an interesting
+question. [Recognize I don’t know how.  Enforce you can do with
+monads, if you have a monadic interpreter.]
+
+* Our idea
+
+[Our idea, it seems to me, is essentially: when instrumenting, we add
+and modify code.  For modular adding you might need open modules,
+depending on the language; for modular modification you may need AOP.
+We show it works in Haskell.
+
+How “modular” is it, in the end?  There’s still accidental complexity
+left. Future work, or misdirection?]
+
+* The details
+
+* Discussion
+
+[On the granularity of advices: the function is the boundary.  Messing
+around inside functions is too brittle; you break the barrier of
+abstraction.]
+
+In object-oriented languages, we would have used the mechanisms of
+inheritance and overriding (with the keyword =super=) to solve this
+problem.  In prototype-based languages, we would have used delegation.
+[Not necessarily ... in JavaScript we get by using only objects as
+dictionaries, and functions.]
+
+#+BEGIN_SRC java
+  interface Term {
+    Value interp();
+  }
+
+  class Constant implements Term {
+    int i = 0;
+    Constant(int i) { this.i = i; }
+    Value interp() { return new Number(this.i); }
+  }
+
+  interface Value<T> {
+    T get();
+  }
+
+  class Number implements Value<Integer> {
+    int i;
+    Number(int i) { this.i = i; }
+    Integer get() { return this.i; }
+  }
+
+  class Plus implements Term {
+    Term t1, t2;
+    Plus(Term t1, Term t2) { this.t1 = t1; this.t2 = t2; }
+    Value interp() { return plus(t1.interp(), t2.interp()); }
+
+    Value plus(Number a, Number b) {
+      return a + b;
+    }
+  }
+
+  class Constant42a extends Constant {
+    @override
+    Value interp() { Value r = super.interp(); return new Number(r.get()); }
+  }
+
+  class Constant42b extends Constant {
+    @override
+    Value interp() { this.i *= 42; return super.interp(); }
+  }
+#+END_SRC
+
+#+BEGIN_SRC javascript
+  var terms = {
+    Constant: function(i) { return { type: 'Constant', i: i }; },
+    Plus: function(a, b) { return { type: 'Plus', a: a, b: b }; },
+  };
+
+  var values = {
+    Number: function(i) { return { type: 'Number', value: i }},
+  };
+
+  var rules = {
+    Constant: function(term) {
+      return values.Number(term.i);
+    },
+
+    Plus: function(term) {
+      return dispatch(plus, interp(term.a), interp(term.b));
+    },
+  };
+
+  var plus = {
+    'Number-Number': function(a, b) {
+      return a.value + b.value;
+    },
+  }
+
+  function dispatch(functions, arg1, arg2) {
+    functions[arg1.type + '-' + arg2.type](arg1, arg2);
+  }
+
+  function interp(term) {
+    rules[term.type](term);
+  }
+#+END_SRC
+
+[Examples: modify + to add 2 (change return value); log calls (add side effect)]
+
+** Questions
+- What difficulties arise from having a monadic interpreter as a base?
+  Is it fundamentally different?
+
+- How is this not already solved by Open Data Types and Open Functions?
+  - A: Open Functions does not give you `proceed`.
+
+- What happens when the original interpreter and the extensions evolve
+  in time?  How can we keep the two interpreters in sync, and minimize
+  the overhead?  Especially as AOP introduces a strong coupling in the
+  form of pointcuts.
+
+- What if we don’t have access to the original interpreter’s source
+  code.  This is a legitimate scenario.  How do instrument the running
+  code then?  This maybe related to the path took by Ansaloni and
+  Binder.
+
+** Downsides to the monadic interpreter approach for modularity
+*** Explicit use of monads
 You have to explicitly write the interpreter to return monads instead
 of raw values.
 
@@ -17,7 +328,7 @@ With Haskell’s syntactic sugar for unit and bind, the cost is not that
 great (though there’s still some mode switching required “I have to
 `return` because it expects a monad”).
 
-** The `lift` uglyness
+*** The `lift` uglyness
 When using multiple State monad transformers, you must use `lift` to
 access the state you want from the monad stack.  The stack order
 /matters/, but it should not.
@@ -29,7 +340,7 @@ lift (I guess it does the lifting for you).
 If there are no hidden costs or restrictions, then this is not a
 downside anymore.
 
-** Limitations for extending cases for pattern matching
+*** Limitations for extending cases for pattern matching
 You can’t just extend functions with additional cases, since
 functions are closed at definition time.
 
@@ -61,7 +372,7 @@ The latter also allows you to think of open data type extensions as
 one monolithic data type (semantically equivalent).  Except when
 textual order of constructors matter.
 
-** Can’t easily extend the data types either
+*** Can’t easily extend the data types either
 To add a new AST node, you need to:
 
 1. Extend the `Term` data type
@@ -77,7 +388,7 @@ mechanism is there, we could hide it with sugar.
 [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]] solves the problem in a modular
 way: extensions to the data type can happen in other modules.
 
-* Facets as a monad
+** Facets as a monad
 If the instrumentation of the interpreter was entirely confined to a
 monad, it would be the epitome of modularity (bar the two first points
 above).
@@ -90,7 +401,7 @@ environment, store and program counter.  But that would mean
 duplicating the standard rules.  And that means having a second full
 interpreter with faceted evaluation ... so you just duplicate, not
 really “instrumentation in a modular fashion”.
-* Opening `interp`
+** Opening `interp`
 Suggested by Rémi.
 
 Instead of opening each case individually, `goRef` or `goIf` and so
@@ -127,7 +438,7 @@ goInterpAdv proceed args@((If cond thn els), e) =
 goInterpAdv proceed = proceed
 #+END_SRC
 
-* Class types approach
+** Class types approach
 Another suggestion by Rémi.
 
 #+BEGIN_SRC haskell
@@ -151,7 +462,7 @@ overhead is minimal.  Though you still need to have indirect calls.
 > Ismael: Some disadvantages of this approach are discussed in the
 Open Data Types paper, in Section 6.4.
 
-* Comments
+** Comments
 
 (Ismael): I think we should enumerate all the required changes along
 their nature: data type extension, new case for functions, etc. Doing
@@ -183,7 +494,7 @@ define "open functions". Whereas the approach of Open Data... is less
 expressive because it lacks a pointcut language (or something along
 these lines).
 
-** Comparing LC-facets with LC.hs
+*** Comparing LC-facets with LC.hs
 
 - Term is extended with the Facet variant
 - Value is extended with the FacetV variant
@@ -214,7 +525,7 @@ still being able to refer to the default implementation by using
 proceed. Actually this can be done using RequirePC (See file
 LC-ismael.hs):
 
-** Using RequirePC to advice a particular case of goInterp
+*** Using RequirePC to advice a particular case of goInterp
 
 #+BEGIN_SRC haskell
 -- Require PC for Ref case
