@@ -80,7 +80,7 @@ type M a = AOT (StateT ProgCounter (StateT Store Identity)) a
 -- Require PC for Ref case
 refPC :: Typeable1Monad m => RequirePC m (Term, Environment) b
 refPC = RequirePC $ return (\ jp -> case unsafeCoerce jp of
-                               (Jp _ _ ((Ref t, _))) -> return True
+                               (Jp _ _ ((Ref t, _)) _) -> return True
                                _ -> return False)
 
 -- i13n
@@ -88,13 +88,13 @@ runM :: M Value -> ProgCounter -> Store -> ((Value, ProgCounter), Store)
 runM m pc s = runIdentity (runStateT (runStateT (runAOT prog) pc) s)
  where prog = do
            -- deploy (aspect (pcCall goRef) goRefAdv)       -- i13n
-           deploy (aspect (pcAnd (pcCall goInterp) refPC) goRefAdv) 
+           deploy (aspect (pcAnd (pcCall goInterp) refPC) goRefAdv)
            deploy (aspect (pcCall goDeref) goDerefAdv)   -- i13n
            deploy (aspect (pcCall goAssign) goAssignAdv) -- i13n
            deploy (aspect (pcCall goApply) goApplyAdv)   -- i13n
            m
 
-interp t e = goInterp # (t, e) 
+interp t e = goInterp # (t, e)
 
 goInterp :: (Term, Environment) -> M Value
 goInterp (Bot, e)         = return Bottom

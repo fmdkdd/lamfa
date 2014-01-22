@@ -55,7 +55,7 @@ instance (Typeable1Monad m) => Typeable1 (ProgCounterT m) where
 instance MonadState s m => MonadState s (ProgCounterT m) where
   get = lift $ get
   put = lift . put
-         
+
 runPCT :: ProgCounterT m a -> ProgCounter -> m (a, ProgCounter)
 runPCT (ProgCounterT pct) pc = runStateT pct pc
 
@@ -63,17 +63,17 @@ class MonadProgCounter m where
   getProgCounter :: m ProgCounter
 
 instance Monad m => MonadProgCounter (ProgCounterT m) where
-  getProgCounter = ProgCounterT $ StateT $ \pc -> return (pc, pc) 
+  getProgCounter = ProgCounterT $ StateT $ \pc -> return (pc, pc)
 
 type M' = AOT (ProgCounterT M) -- i13n
-               
+
 newInterp t e = interp # (t, e)
 
 
 -- Require PC for Ref case
 refPC :: Typeable1Monad m => RequirePC m (Term, Environment) b
 refPC = RequirePC $ return (\ jp -> case unsafeCoerce jp of
-                               (Jp _ _ ((Ref t, _))) -> return True
+                               (Jp _ _ ((Ref t, _)) _) -> return True
                                _ -> return False)
 
 -- Another problem: the store handles Value but not NewValue
@@ -85,7 +85,7 @@ refPC = RequirePC $ return (\ jp -> case unsafeCoerce jp of
 --      let v = storeLookup addr store
 --      let fv = (createFacetValue progCounter v Bottom)
 --      put (storeReplace addr fv store)
---      return result        
+--      return result
 
 -- i13n
 runM' :: M' Value -> ProgCounter -> Store -> ((Value, ProgCounter),Store)
