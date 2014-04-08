@@ -80,7 +80,7 @@ type M a = AOT (StateT ProgCounter (StateT Store Identity)) a
 -- Require PC for Ref case
 refPC :: Typeable1Monad m => RequirePC m (Term, Environment) b
 refPC = RequirePC $ return (\ jp -> case unsafeCoerce jp of
-                               (Jp _ _ ((Ref t, _)) _) -> return True
+                               (Jp _ _ ((Ref _, _)) _) -> return True
                                _ -> return False)
 
 -- i13n
