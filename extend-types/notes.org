@@ -1,0 +1,88 @@
+# \bibliography{/home/fmarch12/Archimède/Thèse/notes/refs}
+
+Notes on extending data types for instrumenting the interpreter.
+
+* Problem
+** Goal
+In [[file:Base.hs]], we have two data types: Term and Value, and an `eval`
+function.
+
+We want to extend those types with new constructors Facet and
+FacetValue, and consequently extend the `eval` function to match on
+the new constructors.
+
+The obvious way to do it is by modifying the base to obtain
+[[file:Extended.hs]].
+
+BUT, we want to write the extension in a separate file.  Because we
+think they are separate concerns: one exports a standard interpreter,
+the other will export an instrumented interpreter.
+
+We need to reason about the two separately, but we don’t want to
+repeat the code from the base.
+
+** Rules
+Write an “Extension.hs” file, that imports [[file:Base.hs]], and exports
+an `eval` function with semantics identical to the `eval` function of
+[[file:Extended.hs]].
+
+The constructs in the extension file should not repeat the ones
+in the base.  Especially: duplication of data types, constructors and
+`eval` cases is forbidden.
+
+* False starts
+** Type extension using “Either”
+See file [[file:Extension.fail.1.hs]].  Types are extended like so:
+
+: data FacetTerm  = Facet Principal FacetTerm FacetTerm | BaseTerm Term
+
+*** What does work
+- Maximum reuse from Base.hs
+- Able to execute term0 and term1
+
+*** What fails
+- term2 gives a type error:
+    “Couldn't match expected type `Term' with actual type `FacetTerm'”
+
+: term2 = (Lam "y" (Facet 0 (BaseTerm (Lam "x" Bot)) (BaseTerm Bot)))
+
+- Also, have to wrap Base.Term values with the BaseTerm constructor
+
+*** What I wanted
+- `eval term2` gives the same result as when using Extended.eval.
+
+- The raw term1 and term2 should type without wrapping values.
+
+*** Why it doesn’t work
+A FacetTerm is either a Facet or a BaseTerm.  A Facet can contain
+FacetTerms (and hence BaseTerms), but since BaseTerms are just Terms,
+they cannot contain Facets.
+
+* Related work
+Steele
+** Steele 94
+[[papers:Ste-94][Ste-94-paper]] uses a “program simplifier” aka static transformation.
+See section 8 and around.
+
+** Open Data Types
+[[papers:LH-06][LH-06-paper]] solves the problem with “open data type”:
+: open data Expr:: *
+
+then, at any future point:
+: Num ::   Int -> Expr
+This declares a constructor Num for Expr that takes an Int.
+
+In a separate file, we can have:
+: Plus ::  Expr -> Expr -> Expr
+So that in the end, it’s as if we had written:
+: data Expr = Num Int | Plus Expr Expr
+
+Minor issue: no implementation.  They sketch at two methods only.
+
+Are there follow-ups?
+
+** Data types à la carte
+[[papers:Swi-08][Swi-08-paper]] seems straightforward.  Should try next.
+
+A first try is in [[file:Extension.swierstra.hs]].  Seems I’m stuck at
+typing issues with the Closure.
