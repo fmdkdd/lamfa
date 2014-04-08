@@ -5,6 +5,15 @@ Other related work:
   + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
 - [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]]
 
+* Tasks
+** DONE [#A] Find a tool like Esprima for Haskell
+CLOSED: [2014-03-12 Wed 15:19]
+** TODO [#A] Write a static transformation for extending data types
+** TODO [#A] Implement another instrumentation
+With different issues than Faceted Evaluation.
+
+The one from Modularity’14?
+
 * The problem
 Say we have a monadic interpreter for a toy language.  We want to
 instrument this interpreter: modify the rules to create additional
@@ -193,7 +202,7 @@ instrumentation with the above constraints of modularity?
 Note that the changes may bring only additional side effects, and
 leave the original behavior unaltered.  How to recognize or enforce
 “side-effects only” instrumentation is an interesting
-question. [Recognize I don’t know how.  Enforce you can do with
+question. [“Recognize” I don’t know how.  “Enforce” you can do with
 monads, if you have a monadic interpreter.]
 
 * Our idea
@@ -204,7 +213,10 @@ depending on the language; for modular modification you may need AOP.
 We show it works in Haskell.
 
 How “modular” is it, in the end?  There’s still accidental complexity
-left. Future work, or misdirection?]
+left.  Future work, or misdirection?]
+
+Addition to data types follows the intertypes aspects of AspectJ.
+[Explain]
 
 * The details
 
@@ -299,22 +311,66 @@ dictionaries, and functions.]
 
 [Examples: modify + to add 2 (change return value); log calls (add side effect)]
 
-** Questions
-- What difficulties arise from having a monadic interpreter as a base?
-  Is it fundamentally different?
+** Questions [4/7]
+- [X] What difficulties arise from having a monadic interpreter as a
+  base?  Is it fundamentally different?
 
-- How is this not already solved by Open Data Types and Open Functions?
-  - A: Open Functions does not give you `proceed`.
+  A: When the interpreter is monadic, it’s easy to change the type of
+  the monad to pass the Program Counter.  When the interpreter is not
+  monadic, it becomes much harder to modify.
 
-- What happens when the original interpreter and the extensions evolve
-  in time?  How can we keep the two interpreters in sync, and minimize
-  the overhead?  Especially as AOP introduces a strong coupling in the
-  form of pointcuts.
+- [ ] Why can’t you follow Wadler or Steele and put the whole
+  instrumentation inside a monad?
 
-- What if we don’t have access to the original interpreter’s source
-  code.  This is a legitimate scenario.  How do instrument the running
-  code then?  This maybe related to the path took by Ansaloni and
-  Binder.
+- [X] Writing the interpreter in a monadic style can be considered a
+  form of modularization.  So, a monadic interpreter is already “open”
+  to extension in a certain way.  Why not assume that the interpreter
+  is already amenable to instrumentation; assume it already defines
+  hooks for instrumentation purposes?
+
+  A: Ideally, the way we implement the interpreter should not impact
+  the implementation of the instrumentation.  The interpreter could be
+  monadic, it could include hooks.  Or not.  The implementation
+  choices should not influence the implementation choices of the
+  instrumentation.
+
+  What this means is that we should decouple the implementation of the
+  instrumentation from the implementation of the interpreter.  We
+  should treat the latter as a black box.  The instrumentation
+  implementer should not break the barrier of abstraction and look at
+  how the interpreter code works for writing her own.  Then, the only
+  solution is for the two parties to agree on an extension interface
+  for the interpreter.
+
+- [X] How to define such an interface modularly?
+
+  A: Joinpoints already provide “hooks” for the instrumentation.  But
+  not all joinpoints are of interest for the instrumentation.  The
+  interpreter must provide hooks like “around ref”.  An elegant way to
+  provide them is to use AOP.
+
+  We get the following three components; each line interacts with the
+  one above only (low coupling).
+
+  + interpreter, written in language X
+  + extension interface, defined by exposing joinpoints
+  + instrumentation, written in language X, with pointcuts on the
+    extension interface
+
+- [X] How is this not already solved by Open Data Types and Open
+  Functions?
+
+  A: Open Functions does not give you `proceed`.
+
+- [ ] What happens when the original interpreter and the extensions
+  evolve in time?  How can we keep the two interpreters in sync, and
+  minimize the overhead?  Especially as AOP introduces a strong
+  coupling in the form of pointcuts.
+
+- [ ] What if we don’t have access to the original interpreter’s
+  source code.  This is a legitimate scenario.  How do instrument the
+  running code then?  This maybe related to the path taken by Ansaloni
+  and Binder.
 
 ** Downsides to the monadic interpreter approach for modularity
 *** Explicit use of monads
@@ -387,6 +443,11 @@ mechanism is there, we could hide it with sugar.
 
 [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]] solves the problem in a modular
 way: extensions to the data type can happen in other modules.
+
+The “inter-types aspects” of AspectJ allow modifying the static
+structure of an existing class, by extending its members or methods.
+Basically, the same thing is needed here.  If the AOP library for
+Haskell provided inter-types aspects, then it’s done.
 
 ** Facets as a monad
 If the instrumentation of the interpreter was entirely confined to a
