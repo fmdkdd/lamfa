@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+--{-# LANGUAGE DeriveDataTypeable #-}
 
 module LCS where
 
@@ -7,9 +7,7 @@ import Control.Monad.State
 import Control.Monad.Identity
 import Data.Typeable
 
-import Debug.Trace
-
-
+--import Debug.Trace
 
 type Name      = String
 type Address   = Int
@@ -34,7 +32,7 @@ data Value = Error String
            | Boolean Bool
            | Address Int
            | Closure Name Term Environment
- deriving Typeable             
+-- deriving Typeable
 
 instance Eq Value where
   Error s1 == Error s2               = s1 == s2
@@ -57,89 +55,93 @@ instance Show Value where
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
 
-type M = (StateT Store Identity)
+type M = StateT (Environment, Store) Identity
 
-runM :: M Value -> Store -> (Value, Store)
-runM m s = runIdentity (runStateT m s)
+runM :: M Value -> Environment -> Store -> (Value, (Environment, Store))
+runM m env store = runIdentity (runStateT m (env, store))
 
-interp :: (Monad m, MonadState Store m) => (Term, Environment) -> m Value
-interp (Bot, e)         = return Bottom
-interp ((Con i), e)     = return (Constant i)
-interp ((Var x), e)     = return (envLookup x e)
-interp ((Lam x v), e)   = return (Closure x v e)
+interp :: (Monad m, MonadState (Environment, Store) m) => Term -> m Value
+interp Bot         = return Bottom
+interp (Con i)     = return $ Constant i
+interp (Var x)     = do (env,_) <- get
+                        return $ envLookup x env
+interp (Lam x v)   = do (env,_) <- get
+                        return $ Closure x v env
 
-interp ((App t u), e) =
-  do f <- interp (t, e)
-     a <- interp (u, e)
+interp (App t u) =
+  do f <- interp t
+     a <- interp u
      apply f a
 
-interp ((Ref t), e) =
-    do v <- interp (t, e)
-       store <- get
+interp (Ref t) =
+    do v <- interp t
+       (env,store) <- get
        let addr = length store
-       put ((addr,v):store)
-       return (Address addr)
+       put (env,(addr,v):store)
+       return $ Address addr
 
-interp ((Deref t), e) =
-  do v <- interp (t, e)
+interp (Deref t) =
+  do v <- interp t
      deref v
 
-interp ((Assign l r), e) =
-  do lv <- interp (l, e)
-     rv <- interp (r, e)
+interp (Assign l r) =
+  do lv <- interp l
+     rv <- interp r
      assign lv rv
 
 -- desugaring
-interp ((Let id namedExpr body), e) = interp ((App (Lam id body) namedExpr), e)
-interp ((Seq left right), e)        = interp ((Let "freevar" left right), e)
-interp ((If cond thn els), e)       = interp ((App
+interp (Let id namedExpr body) = interp $ App (Lam id body) namedExpr
+interp (Seq left right)        = interp $ Let "freevar" left right
+interp (If cond thn els)       = interp $ App
                                            (App
                                             (App cond (Lam "d" thn))
                                             (Lam "d" els))
-                                           (Lam "x" (Var "x"))), e)
-interp ((Bol True), e)              = interp ((Lam "x" (Lam "y" (Var "x"))), e)
-interp ((Bol False), e)             = interp ((Lam "x" (Lam "y" (Var "y"))), e)
+                                           (Lam "x" (Var "x"))
+interp (Bol True)              = interp $ Lam "x" (Lam "y" (Var "x"))
+interp (Bol False)             = interp $ Lam "x" (Lam "y" (Var "y"))
 
 
 -- helpers
 
-deref :: (Monad m, MonadState Store m) => Value -> m Value
+deref :: (Monad m, MonadState (Environment, Store) m) => Value -> m Value
 deref Bottom      = return Bottom
-deref (Address a) = do store <- get
-                       return (storeLookup a store)
+deref (Address a) = do (_,store) <- get
+                       return $ storeLookup a store
 
-assign :: (Monad m, MonadState Store m) => Value -> Value -> m Value
+assign :: (Monad m, MonadState (Environment, Store) m) => Value -> Value -> m Value
 assign Bottom _          = return Bottom
-assign (Address a) right = do store <- get
-                              put (storeReplace a right store)
+assign (Address a) right = do (env,store) <- get
+                              put (env,(storeReplace a right store))
                               return right
 
-apply :: (Monad m, MonadState Store m) => Value -> Value -> m Value
+apply :: (Monad m, MonadState (Environment, Store) m) => Value -> Value -> m Value
 apply Bottom _               = return Bottom
-apply (Closure x body env) v = interp (body, ((x,v):env))
+apply (Closure x body env) v = do (_,store) <- get
+                                  put ((x,v):env,store)
+                                  interp body
 
 -- other helpers
 envLookup :: Name -> Environment -> Value
-envLookup x env = case (lookup x env) of
+envLookup x env = case lookup x env of
                     Just v -> v
-                    Nothing -> (Error ("unbound " ++ show x))
+                    Nothing -> Error $ "unbound " ++ show x
 
 storeLookup :: Address -> Store -> Value
-storeLookup a store = case (lookup a store) of
+storeLookup a store = case lookup a store of
                         Just v -> v
-                        Nothing -> (Error ("not in store " ++ show a))
+                        Nothing -> Error $ "not in store " ++ show a
 
 storeReplace :: Address -> Value -> Store -> Store
 storeReplace a v [] = []
 storeReplace a v ((b,w):s) = if a == b then ((a,v):s)
-                             else ((b,w):(storeReplace a v s))
+                             else (b,w):(storeReplace a v s)
 
 -- testing
 
 -- use implicit parameters??
 
-test :: Term -> Environment -> Store -> String
-test t env store = show (runM (interp (t, env)) store)
+test :: Term -> Environment -> Store -> IO ()
+test t env store = print $ runM (interp t) env store
 
 testDefault t = test t [] []
 
