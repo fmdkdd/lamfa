@@ -10,9 +10,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 import "mtl" Control.Monad.Identity
 import "mtl" Control.Monad.State
+import "effective-aspects" AOP.Default
+
+import Debug.Trace
 
 data Term f a =
     Pure a
@@ -23,8 +27,6 @@ instance (Functor f, Show a, Show (f String)) => Show (Term f a) where
    where showPure a    = "(Pure " ++ show a ++ ")"
          showImpure fb = "(Impure " ++ show fb ++ ")"
 
-
---  (Show ((:+:) IntD BoolD String))
 instance (Show (f String), Show (g String)) =>  Show ((f :+: g) String) where
   show (Inl r) = show r
   show (Inr r) = show r         
@@ -70,33 +72,48 @@ foldTerm pure imp (Impure t) = imp (fmap (foldTerm pure imp) t)
 -- exec :: Exec f => Term f a -> Identity a
 -- exec = foldTerm return execAlgebra
 
-
 -- associated types?
 data Value = 
     IntV Int
   | BoolV Bool
-  | ClosureV Name (State Environment Value) Environment
- -- deriving Show
+  | ClosureV Name (M Value) Environment
+ deriving Typeable
 
 instance Show Value where
   show (IntV i)  = "(IntV " ++ show i ++ ")"
   show (BoolV b) = "(BoolV " ++ show b ++ ")"
   show (ClosureV name _ env) = "(ClosureV (" ++ name ++ ") Env: " ++ show env ++ ")"
 
-exec :: Exec f => Term f Value -> State Environment Value
+type M = AOT (StateT Environment Identity)
+
+exec :: Exec f => Term f Value -> M Value
 exec = foldTerm return execAlgebra
 
 type Environment = [(Name, Value)]
 
 class Functor f => Exec f where
-  execAlgebra :: f (State Environment Value) -> State Environment Value
+  execAlgebra :: f (M Value) -> M Value
 
 instance (Exec f, Exec g) => Exec (f :+: g) where
   execAlgebra (Inl r) = execAlgebra r
   execAlgebra (Inr r) = execAlgebra r
 
+appDTag = 10
+
 run :: Exec f => Term f Value -> Value
-run t = evalState (exec t) []
+run t = runIdentity $ flip evalStateT [] $ runAOT $
+        do deploy (aspect pcTrue logAdv)
+           exec t
+
+pcTrue :: Monad m => PC m a (m b)
+pcTrue = PC $ return $ \jp -> trace "Pointcut return True" $ return True
+
+pcTag' tag typ = pcType typ `pcAnd` pcTag tag            
+
+logAdv :: Monad m => Advice m a b
+logAdv proceed arg = do result <- proceed arg
+                        trace "Applying fun" $ return ()
+                        return result -- return (IntV 100) works
 
 ------------------------------------------------------------------------------------
 
@@ -111,17 +128,11 @@ instance Show a => Show (IntD a) where
 int :: (IntD :<: f) => Int -> Term f Value
 int i = inject (Int_ (Pure (IntV i)))
 
--- int :: (IntD :<: f) => Int -> Term f Int
--- int i = (Pure i)
-
 instance Exec IntD where
   execAlgebra (Int_ a) = a
 
 p1 :: Term IntD Value
 p1 = int 10
-
--- now booleans!!
-
 data BoolD a = Bool_ a deriving Functor
 
 instance Show (BoolD String) where
@@ -136,23 +147,6 @@ instance Exec BoolD where
 p2 :: Term BoolD Value
 p2 = bool True
 
--- recall that (Term f) is a monad
--- p3 :: Term BoolD (Bool, Bool)
--- p3 = do b1 <- bool True
---         b2 <- bool False
---         return (b1, b2)
-  
--- p4 :: Term (IntD :+: BoolD) (Value, Value)
--- p4 = do b <- bool True
---         i <- int 10
---         return (i, b)
-
--- p5 :: Term (IntD :+: BoolD) (Value, Value)
--- p5 = do b <- bool True
---         i <- int 10
---         return (IntV 10, b)
-
--- adding integers!
 data AddIntD e = Add e e deriving Functor
 
 add x y = inject (Add x y)
@@ -180,7 +174,7 @@ data LamD e = Lam Name e deriving Functor
 lam x t = inject (Lam x t)
 
 instance Exec LamD where
-  execAlgebra (Lam x t) = do env <- get                             
+  execAlgebra (Lam x t) = do env <- get
                              return (ClosureV x t env)
 
 p8 :: Term (LamD :+: VarD :+: IntD) Value
@@ -192,19 +186,22 @@ p7 = lam "x" (add (var "x") (var "x"))
 p9 :: Term (AppD :+: LamD :+: VarD :+: IntD :+: AddIntD) Value
 p9 = app (lam "x" (add (var "x") (int 2))) (int 2)
 
-data AppD e = App e e deriving Functor
+data AppD e = App e e deriving (Functor, Typeable)
 
 app fun arg = inject (App fun arg)
 
+openAppD :: AppD (M Value) -> M Value
+openAppD (App fun arg) =
+            do (ClosureV name body env) <- fun
+               a <- arg
+               oldEnv <- get       
+               put (("x", a):env)
+               result <- body
+               put oldEnv
+               return result
+
 instance Exec AppD where
-  execAlgebra (App fun arg) =
-    do (ClosureV name body env) <- fun
-       a <- arg
-       oldEnv <- get       
-       put (("x", a):env)
-       result <- body
-       put oldEnv
-       return result
+  execAlgebra arg = openAppD # arg
 
 let' name value body = app (lam name body) value
 
