@@ -8,7 +8,8 @@ Other related work:
 * Tasks
 ** DONE [#A] Find a tool like Esprima for Haskell
 CLOSED: [2014-03-12 Wed 15:19]
-** TODO [#A] Write a static transformation for extending data types
+** DONE [#A] Write a static transformation for extending data types
+CLOSED: [2014-04-14 Mon 11:20]
 ** TODO [#A] Implement another instrumentation
 With different issues than Faceted Evaluation.
 

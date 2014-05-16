@@ -1,11 +1,18 @@
-{-# LANGUAGE FlexibleContexts #-}
+--{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 --{-# LANGUAGE DeriveDataTypeable #-}
+
+{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module LCS where
 
-import Control.Monad.State
-import Control.Monad.Identity
-import Data.Typeable
+import "mzv" Control.Monad.State
+import "mzv" Control.Monad.Identity
+import "mzv" Control.Monad.Mask
+import "mzv" Control.Monad.Views
+--import Data.Typeable
 
 --import Debug.Trace
 
@@ -55,38 +62,88 @@ instance Show Value where
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
 
-type M = StateT (Environment, Store) Identity
+-- newtype EnvironmentT m a = EnvironmentT { aEnv :: (StateT Environment m) a }
+--     deriving (Monad, MonadTrans)
 
-runM :: M Value -> Environment -> Store -> (Value, (Environment, Store))
-runM m env store = runIdentity (runStateT m (env, store))
+-- runEnvironmentT :: EnvironmentT m a -> Environment -> m (a, Environment)
+-- runEnvironmentT (EnvironmentT env) = runStateT env
 
-interp :: (Monad m, MonadState (Environment, Store) m) => Term -> m Value
-interp Bot         = return Bottom
-interp (Con i)     = return $ Constant i
-interp (Var x)     = do (env,_) <- get
-                        return $ envLookup x env
-interp (Lam x v)   = do (env,_) <- get
-                        return $ Closure x v env
+-- newtype StoreT m a = StoreT { aStore :: (StateT Store m) a }
+--     deriving (Monad, MonadTrans)
 
-interp (App t u) =
-  do f <- interp t
-     a <- interp u
-     apply f a
+-- runStoreT :: StoreT m a -> Store -> m (a, Store)
+-- runStoreT (StoreT env) = runStateT env
+
+-- instance MonadState Environment (StateT Store m) where
+--     get = lift get
+--     put = lift . put
+
+-- type M = StateT Environment (StateT Store Identity)
+--type M = StateT InterpState Identity
+
+-- data InterpState = InterpState { env :: Environment, store :: Store }
+--   deriving Show
+
+-- class MState m where
+--   getEnv :: m Environment
+
+-- instance Monad m => MonadProgCounter (ProgCounterT m) where
+--   getProgCounter = ProgCounterT $ StateT $ \pc -> return (pc, pc)
+
+-- class MonadState Environment where
+--     get
+
+--instance MonadState InterpState
+
+--instance
+
+data EnvTag = EnvTag
+data StoreTag = StoreTag
+
+type M = TStateT EnvTag Environment (TStateT StoreTag Store Identity)
+
+-- runM :: M Value -> Environment -> Store -> ((Value, Environment), Store)
+--runM :: M Value -> InterpState -> (Value, InterpState)
+runM :: M Value -> Environment -> Store -> ((Value, Environment), Store)
+runM m env store = runIdentity $ runTStateT store (runTStateT env m)
+
+ret v = return (v, return (), return ())
+
+interp :: forall m e s.
+          (Monad m,
+           TWith EnvTag e m, MonadState Environment e,
+           TWith StoreTag s m, MonadState Store s)
+          => Term -> m (Value, e (), s ())
+interp Bot         = ret $ Bottom
+interp (Con i)     = ret $ Constant i
+
+interp (Var x)     = do env <- getv viewEnv
+                        ret $ envLookup x env
+                     where viewEnv = structure EnvTag :: e :><: m
+
+interp (Lam x v)   = do env <- getv viewEnv
+                        ret $ Closure x v env
+                     where viewEnv = structure EnvTag :: e :><: m
+
+interp (App t u) = do (f, _, _) <- interp t :: m (Value, e (), s ())
+                      (a, _, _) <- interp u :: m (Value, e (), s ())
+                      apply f a
 
 interp (Ref t) =
-    do v <- interp t
-       (env,store) <- get
+    do (v, _, _) <- interp t :: m (Value, e (), s())
+       store <- getv viewStore
        let addr = length store
-       put (env,(addr,v):store)
-       return $ Address addr
+       putv viewStore $ (addr,v):store
+       ret $ Address addr
+    where viewStore = structure StoreTag :: s :><: m
 
 interp (Deref t) =
-  do v <- interp t
-     deref v
+    do (v, _, _) <- interp t :: m (Value, e (), s())
+       deref v
 
 interp (Assign l r) =
-  do lv <- interp l
-     rv <- interp r
+  do (lv, _, _) <- interp l :: m (Value, e (), s())
+     (rv, _, _) <- interp r :: m (Value, e (), s())
      assign lv rv
 
 -- desugaring
@@ -103,22 +160,37 @@ interp (Bol False)             = interp $ Lam "x" (Lam "y" (Var "y"))
 
 -- helpers
 
-deref :: (Monad m, MonadState (Environment, Store) m) => Value -> m Value
-deref Bottom      = return Bottom
-deref (Address a) = do (_,store) <- get
-                       return $ storeLookup a store
+deref :: forall m e s.
+         (Monad m,
+          TWith EnvTag e m, MonadState Environment e,
+          TWith StoreTag s m, MonadState Store s)
+         => Value -> m (Value, e (), s ())
+deref Bottom      = ret Bottom
+deref (Address a) = do store <- getv viewStore
+                       ret $ storeLookup a store
+                    where viewStore = structure StoreTag :: s :><: m
 
-assign :: (Monad m, MonadState (Environment, Store) m) => Value -> Value -> m Value
-assign Bottom _          = return Bottom
-assign (Address a) right = do (env,store) <- get
-                              put (env,(storeReplace a right store))
-                              return right
+assign :: forall m e s.
+         (Monad m,
+          TWith EnvTag e m, MonadState Environment e,
+          TWith StoreTag s m, MonadState Store s)
+         => Value -> Value -> m (Value, e (), s ())
+assign Bottom _          = ret Bottom
+assign (Address a) right = do store <- getv viewStore
+                              putv viewStore $ storeReplace a right store
+                              ret right
+                           where viewStore = structure StoreTag :: s :><: m
 
-apply :: (Monad m, MonadState (Environment, Store) m) => Value -> Value -> m Value
-apply Bottom _               = return Bottom
-apply (Closure x body env) v = do (_,store) <- get
-                                  put ((x,v):env,store)
+
+apply :: forall m e s.
+         (Monad m,
+          TWith EnvTag e m, MonadState Environment e,
+          TWith StoreTag s m, MonadState Store s)
+         => Value -> Value -> m (Value, e (), s ())
+apply Bottom _               = ret Bottom
+apply (Closure x body env) v = do putv viewEnv ((x,v):env)
                                   interp body
+                                where viewEnv = structure EnvTag :: e :><: m
 
 -- other helpers
 envLookup :: Name -> Environment -> Value
@@ -140,8 +212,16 @@ storeReplace a v ((b,w):s) = if a == b then ((a,v):s)
 
 -- use implicit parameters??
 
-test :: Term -> Environment -> Store -> IO ()
-test t env store = print $ runM (interp t) env store
+interpWrap :: forall m e s.
+              (Monad m,
+               TWith EnvTag e m, MonadState Environment e,
+               TWith StoreTag s m, MonadState Store s)
+              => Term -> m Value
+interpWrap t = do (v, _, _) <- interp t :: m (Value, e (), s ())
+                  return v
+
+--test :: Term -> Environment -> Store -> IO ()
+test t env store = print $ runM (interpWrap t) env store
 
 testDefault t = test t [] []
 

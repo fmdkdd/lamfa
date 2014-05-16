@@ -5,9 +5,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-import Control.Monad.State
+import Control.Monad.State as MZV
 import Control.Monad.Identity
 import AOP.Default
+import AOP.Default as AO (MonadState)
 import Data.Typeable
 import LCS hiding (test, testDefault)
 
@@ -52,7 +53,7 @@ instance (Typeable1Monad m) => Typeable1 (ProgCounterT m) where
          typeOf1 _ = mkTyConApp (mkTyCon3 "Control" "Monad" "ProgCounterT")
                      [typeOf1 (undefined :: m ())]
 
-instance MonadState s m => MonadState s (ProgCounterT m) where
+instance AO.MonadState s m => AO.MonadState s (ProgCounterT m) where
   get = lift $ get
   put = lift . put
 
