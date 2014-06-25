@@ -61,7 +61,6 @@ instance Show Value where
 
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
-
 -- newtype EnvironmentT m a = EnvironmentT { aEnv :: (StateT Environment m) a }
 --     deriving (Monad, MonadTrans)
 
