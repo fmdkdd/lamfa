@@ -1,0 +1,24 @@
+* Candidates for source manipulation
+** Package haskell-src
+https://hackage.haskell.org/package/haskell-src
+
+Straightforward source-to-source transformation.
+
+Main drawback: have to execute the “merging” tool externally.  Bad for
+workflow, good enough for proof of concept?
+
+** Template Haskell
+http://www.haskell.org/haskellwiki/Template_Haskell
+
+Macro capabilities.  Does not suit our purposes.
+
+1. Cannot extend data type declarations.
+2. Have to use extra syntax $() and [| |].
+
+** Language extension?
+Can’t find any ressource on writing an extension.
+
+Diving into GHC source is an option left open.
+
+* Using haskell-src
+How to add syntax to the parser?
