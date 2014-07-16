@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
+import System.Environment
 import System.IO
 import Haskull.Language.Haskell.Parser
 import Haskull.Language.Haskell.Syntax
@@ -88,7 +89,8 @@ toAST f = openFile f ReadMode >>= \handle ->
 
 main :: IO ()
 main = do
-  parsed <- toAST "tests/2/LC.hs"
+  (filename:_) <- getArgs
+  parsed <- toAST filename
   case parsed of
     (ParseOk ast) -> putStrLn $ prettyPrint (translate ast) --print ast
     (ParseFailed loc err) -> putStrLn err >> putStrLn (show loc)
