@@ -1,4 +1,9 @@
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverlappingInstances #-}
 
 data Expr f = In (f (Expr f))
 
@@ -41,3 +46,27 @@ instance (Eval f, Eval g) => Eval (f :+: g) where
 
 eval :: Eval f => Expr f -> Int
 eval expr = foldExpr evalAlgebra expr
+
+class (Functor sub, Functor sup) => sub :≺: sup where
+    inj :: sub a -> sup a
+
+instance Functor f => f :≺: f where
+    inj = id
+
+instance (Functor f , Functor g) => f :≺: (f :+: g) where
+    inj = Inl
+
+instance (Functor f , Functor g, Functor h, f :≺: g) => f :≺: (h :+: g) where
+    inj = Inr . inj
+
+inject :: (g :≺: f ) => g (Expr f ) -> Expr f
+inject = In . inj
+
+val :: (Val :≺: f ) => Int -> Expr f
+val x = inject (Val x )
+
+(⊕) :: (Add :≺: f ) => Expr f -> Expr f -> Expr f
+x ⊕ y = inject (Add x y)
+
+addEx2 :: Expr (Add :+: Val)
+addEx2 = val 30000 ⊕ val 1330 ⊕ val 7
