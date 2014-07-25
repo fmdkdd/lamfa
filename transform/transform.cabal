@@ -19,7 +19,7 @@ executable transform
   main-is:             Main.hs
   -- other-modules:
   other-extensions:    FlexibleInstances, CPP, DeriveDataTypeable
-  build-depends:       base >=4.6 && <4.7, syb >=0.4 && <0.5, pretty >=1.1 && <1.2
+  build-depends:       base >=4.6 && <4.7, syb >=0.4 && <0.5, pretty >=1.1 && <1.2, MissingH >= 1.2
   -- hs-source-dirs:
   build-tools:         happy
   default-language:    Haskell2010

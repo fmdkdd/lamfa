@@ -6,33 +6,35 @@ import Haskull.Language.Haskell.Parser
 import Haskull.Language.Haskell.Syntax
 import Haskull.Language.Haskell.Pretty
 
+import Data.List.Utils (replace)
+
 -- TODO: Follow translation from Open Data Types and Open Functions
 -- more closely
 
 -- TODO: use Transform for defining the syntax extension (bootstrap).
 
--- TODO: Should transport imports and LANGUAGE pragmas
--- Does the order if import matters?
+-- TODO: Should transport imports and LANGUAGE pragmas.  Does the
+-- order of import matters?
 
 -- TODO: Should translate multiple source files into one
 
--- FIXME: If an extended data type had a typeclass instance, how
--- should the new constructor be added to the cases of the typeclass
--- definition?
+-- FIXME: If an extended data type had a typeclass instance (not a
+-- derived instance), how should the new constructor be added to the
+-- cases of the typeclass definition?
 
 
 translate :: HsModule -> HsModule
 translate (HsModule srcLoc modul mbExportSpecs importDecls decls) =
-    HsModule srcLoc modul mbExportSpecs importDecls newDecls
-    where newDecls = rewrite decls
-          rewrite = removeExtend . regroupFuns . removeExtendData . regroupTerms
+  HsModule srcLoc modul mbExportSpecs importDecls newDecls
+  where newDecls = rewrite decls
+        rewrite = removeExtend . regroupFuns . removeExtendData . regroupTerms
 
 regroupFuns :: [HsDecl] -> [HsDecl]
 regroupFuns ds = map (mergeFunWithExtend (filter isExtend ds)) ds
 
 mergeFunWithExtend :: [HsDecl] -> HsDecl -> HsDecl
 mergeFunWithExtend es (HsFunBind ms@((HsMatch _ name _ _ _):_)) =
-    HsFunBind (ms ++ (matchesWithName name es))
+  HsFunBind (ms ++ (matchesWithName name es))
 mergeFunWithExtend _ other = other
 
 matchesWithName :: HsName -> [HsDecl] -> [HsMatch]
@@ -59,9 +61,9 @@ removeExtendData = filter (not . isExtendData)
 
 mergeOpenWithExtend :: [HsDecl] -> HsDecl -> HsDecl
 mergeOpenWithExtend eds (HsOpenDataDecl srcLoc ctxt name names conDecls qNames) =
-    HsDataDecl srcLoc ctxt name names newDecls qNames
-    where newDecls = conDecls ++ matchingDecls
-          matchingDecls = concat (map projectConDecls (filter (\ed -> name == projectName ed) eds))
+  HsDataDecl srcLoc ctxt name names newDecls qNames
+  where newDecls = conDecls ++ matchingDecls
+        matchingDecls = concat (map projectConDecls (filter (\ed -> name == projectName ed) eds))
 mergeOpenWithExtend _ other = other
 
 projectName :: HsDecl -> HsName
@@ -83,14 +85,15 @@ isExtend (HsExtendDecl _ _ _) = True
 isExtend _ = False
 
 toAST :: FilePath -> IO (ParseResult HsModule)
-toAST f = openFile f ReadMode >>= \handle ->
-          hGetContents handle >>= \content ->
-          return (parseModule content)
+toAST f =
+  readFile f >>= \content ->
+  return (parseModule content)
 
 main :: IO ()
 main = do
   (filename:_) <- getArgs
   parsed <- toAST filename
+  let filename' = replace ".hs" ".result.hs" filename
   case parsed of
-    (ParseOk ast) -> putStrLn $ prettyPrint (translate ast) --print ast
+    (ParseOk ast) -> writeFile filename' (prettyPrint (translate ast))
     (ParseFailed loc err) -> putStrLn err >> putStrLn (show loc)
