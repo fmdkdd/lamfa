@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+
 module FlowR (
   Privilege(..),
   Tag,

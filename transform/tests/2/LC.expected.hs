@@ -1,9 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 import Control.Monad.State.Lazy
 import Control.Monad.Writer
-
---import Data.List
 
 import FlowR
 
@@ -51,9 +47,10 @@ eval (LamR x l body) =
   eval (Lam x body) >>= \c ->
   return $ ValueR c l
 
+
 apply :: Value -> Value -> M Value
 apply Bottom _ = return Bottom
-apply (Closure x body env) v = withEnv ((x, v) : env) (eval body)
+apply (Closure x body env) v = withEnv ((x,v) : env) (eval body)
 
 withEnv :: Environment -> M Value -> M Value
 withEnv env f =
@@ -70,7 +67,7 @@ term0 :: Term
 term0 = (App (Lam "x" (Var "x")) (Con 10))
 
 ---------------------------------------------------------
--- FlowR
+-- FlowR instrumentation
 
 type MR = WriterT (TraceR Value) (StateT Labels M)
 
