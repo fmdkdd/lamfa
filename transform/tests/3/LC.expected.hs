@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 import Control.Monad.State.Lazy
 import Control.Monad.Writer
 
@@ -31,7 +33,27 @@ data Value = Bottom
 type Environment = [(Name, Value)]
 type Store = [(Address, Value)]
 
-type M = StateT Store (State Environment)
+data EvalState = EvalState { env :: Environment
+                           , store :: Store }
+                 | EvalStateR { env :: Environment
+                              , store :: Store
+                              , labels :: Labels }
+                 deriving Show
+
+-- Boilerplate modification functions
+inEnv :: (Environment -> Environment) -> EvalState -> EvalState
+inEnv f s = s { env = f (env s) }
+
+inStore :: (Store -> Store) -> EvalState -> EvalState
+inStore f s = s { store = f (store s) }
+
+inLabels :: (Labels -> Labels) -> EvalState -> EvalState
+inLabels f s = s { labels = f (labels s) }
+
+puts :: MonadState s m => ((a -> b) -> s -> s) -> b -> m ()
+puts f v = modify (f (\_ -> v))
+
+type M = State EvalState
 
 eval :: Term -> M Value
 eval Bot = return Bottom
@@ -39,14 +61,14 @@ eval Bot = return Bottom
 eval (Con n) = return $ Constant n
 
 eval (Var x) =
-  (lift get) >>= \env ->
-  case lookup x env of
+  gets env >>= \e ->
+  case lookup x e of
     Just v -> return v
     Nothing -> fail $ "Unbound variable: " ++ x
 
 eval (Lam x body) =
-  (lift get) >>= \env ->
-  return (Closure x body env)
+  gets env >>= \e ->
+  return (Closure x body e)
 
 eval (App f v) =
   eval f >>= \f ->
@@ -59,17 +81,17 @@ eval (LamR x l body) =
 
 eval (Ref t) =
   eval t >>= \v ->
-  get >>= \store ->
-  let addr = length store in
-  put ((addr,v) : store) >>
+  gets store >>= \s ->
+  let addr = length s in
+  puts inStore ((addr,v) : s) >>
   return (Address addr)
 
 eval (Deref t) =
   eval t >>= \v ->
   case v of
     Bottom -> return Bottom
-    (Address a) -> get >>= \store ->
-      case lookup a store of
+    (Address a) -> gets store >>= \s ->
+      case lookup a s of
         Just v -> return v
         Nothing -> fail $ "Not in store: " ++ show a
 
@@ -78,7 +100,7 @@ eval (Assign l r) =
   eval r >>= \rv ->
   case lv of
     Bottom -> return Bottom
-    (Address a) -> modify (replace a rv) >>
+    (Address a) -> modify (inStore (replace a rv)) >>
                    return rv
 
 -- desugaring
@@ -102,18 +124,17 @@ apply :: Value -> Value -> M Value
 apply Bottom _ = return Bottom
 apply (Closure x body env) v = withEnv ((x,v) : env) (eval body)
 
-withEnv :: Environment -> M Value -> M Value
-withEnv env f =
-    (lift get) >>= \oldEnv ->
-    (lift . put) env >>
+withEnv :: (MonadState EvalState m) => Environment -> m b -> m b
+withEnv e f =
+    gets env >>= \old ->
+    puts inEnv e >>
     f >>= \r ->
-    (lift . put) oldEnv >>
+    puts inEnv old >>
     return r
 
-interp :: Term -> ((Value, Store), Environment)
-interp t = let a = runStateT (eval t) []
-               b = runState a []
-           in b
+interp :: Term -> (Value, EvalState)
+interp t = runState (eval t) (EvalState { env = []
+                                        , store = [] })
 
 term0 :: Term
 term0 = (App (Lam "x" (Var "x")) (Con 10))
@@ -121,7 +142,7 @@ term0 = (App (Lam "x" (Var "x")) (Con 10))
 ---------------------------------------------------------
 -- FlowR instrumentation
 
-type MR = WriterT (TraceR Value) (StateT Labels M)
+type MR = WriterT (TraceR Value) M
 
 evalR :: Term -> MR Value
 -- override default behavior for App
@@ -130,21 +151,22 @@ evalR (App f v) = evalR f >>= \f ->
                   applyR f v
 
 -- fallback for other terms
-evalR t = lift (lift (eval t))
+evalR t = lift (eval t)
 
-interpR :: Term -> ((((Value, (TraceR Value)), Labels), Store), Environment)
-interpR t = let a = runWriterT (evalR t) -- WriterT TraceR
-                b = runStateT a Wildcard -- StateT Labels
-                c = runStateT b []       -- StateT Store
-                d = runState c []       -- State Environment
-            in d
+interpR :: Term -> ((Value, (TraceR Value)), EvalState)
+interpR t = let a = runWriterT (evalR t)
+                b = runState a baseState
+                baseState = EvalStateR { env = []
+                                       , store = []
+                                       , labels = Wildcard }
+            in b
 
 applyR :: Value -> Value -> MR Value
 applyR f@(ValueR c@(Closure x body env) funLabels) value =
     do tell [BeginBlock]
        tell [Line 0 $ Str $ show f ++ " " ++ show value]
 
-       callerLabels <- get
+       callerLabels <- gets labels
        let valueLabels = extractLabels value
 
        tell [Line 0 $ Call (addDefault callerLabels) (addDefault funLabels) (addDefault valueLabels)]
@@ -154,14 +176,14 @@ applyR f@(ValueR c@(Closure x body env) funLabels) value =
        when (value /= Bottom)   -- Bot arg means no args, skip check
          (allowCheck 2 valueLabels funLabels)
 
-       put funLabels
-       r <- withEnvR ((x, value) : env) (evalR body)
+       puts inLabels funLabels
+       r <- withEnv ((x, value) : env) (evalR body)
        -- funLabels might have been modified due to
        -- propagation in step 8; use the new ones
        -- instead
-       funLabels' <- get
+       funLabels' <- gets labels
        -- then, restore previous caller
-       put callerLabels
+       puts inLabels callerLabels
 
        tell [Line 5 $ Return r]
 
@@ -173,14 +195,14 @@ applyR f@(ValueR c@(Closure x body env) funLabels) value =
        allowCheck 7 retLabels' callerLabels
 
        let callerLabels' = propagate retLabels' callerLabels
-       put callerLabels'
+       puts inLabels callerLabels'
        tell [Line 8 $ Propagate retLabels' callerLabels callerLabels']
 
        tell [EndBlock]
        return (ValueR (extractValue r) retLabels')
 
 -- fallback to basic apply
-applyR f v = lift (lift (apply f v))
+applyR f v = lift (apply f v)
 
 -- Return empty labels for a plain value
 extractLabels :: Value -> Labels
@@ -192,21 +214,13 @@ extractValue :: Value -> Value
 extractValue (ValueR v _) = v
 extractValue v = v
 
-withEnvR :: Environment -> MR Value -> MR Value
-withEnvR env f =
-    (lift (lift (lift get))) >>= \oldEnv ->
-    (lift . lift . lift . put) env >>
-    f >>= \r ->
-    (lift . lift . lift . put) oldEnv >>
-    return r
-
 -- running
 prettyTest :: Term -> IO ()
 prettyTest t = do printTrace trace (-2)
                   print value
     where result = interpR t
-          value = fst (fst (fst (fst result)))
-          trace = snd (fst (fst (fst result)))
+          value = fst (fst result)
+          trace = snd (fst result)
 
 --- examples
 term1 :: Term
