@@ -78,3 +78,17 @@ Variations:
    Essentially, this would be a perfectly acceptable and lightweight
    solution if we could extend data types horizontally as well as
    vertically.
+
+** Overriding base behavior
+The change in semantics of the `eval (Ref t)` case for facets
+evaluation requires overriding the default behavior.
+
+Under the facets evaluator, `Ref` must create faceted values.  We can
+create a different evaluator, `evalF`, with the desired behavior.  But
+all the base code is written with `eval` calls, not `evalF`.
+
+Overriding from inheritance would work in an OO language.
+
+An ‘around’ advice would work as well.
+
+What’s the canonical way in Haskell?
