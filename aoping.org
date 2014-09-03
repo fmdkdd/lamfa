@@ -117,7 +117,7 @@ course program counter.  Notice also the simpler return call; adding
 the store is unnecessary noise.
 
 Note also that aspects can be woven lexically as an optimization,
-which is what Dynamic Monkey Patching advocates.  AspectJ does it,
+which is what [[Dynamic monkey patching]] advocates.  AspectJ does it,
 but also keeps runtime aspects that cannot be woven in the code
 statically.  It makes no difference when writing the aspect.
 
@@ -156,8 +156,8 @@ interpretNode and calls to rules is problematic.
 
 Luckily, JavaScript has a single thread of execution.  A call to
 interpretNode will recurse until it returns.  No call to interpretNode
-or any other function can occur in parallel.  Even if the calls were
-asynchronous:
+or any other function can occur in parallel.
+
 * Pragmatic solution: using a global PC
 Since JS has a single thread of execution, and the interpreter is
 written synchronously (no race conditions in the order of async
@@ -182,7 +182,9 @@ would be a more satisfying monkey-patching.
 - String transformation too low-level; loses intention of the changes
 - Very brittle
 
-* Dynamic monkey patching (for lack of a better name)
+* Dynamic monkey patching
+(for lack of a better name)
+
 What would really be readable and maintainable: a dynamic monkey
 patching system where the original source code is not copy/pasted but
 only altered.  For instance:
@@ -291,7 +293,7 @@ action; at least it seems the more natural for me in this case.
 
 This is the traditional way to solve this extension problem in OOP.
 Make the standard interpreter an object, extend it with facets by
-subclassing.
+overriding.
 
 Recognize that rules can take a variable number of
 arguments (θ, σ, [pc]), so reify these arguments in a "context"
@@ -346,9 +348,8 @@ Our extension looks like something a branch could do in git.
 
 * Inference rules as unit of extension
 Adding a tainting interpreter, I realize that most additions "inside"
-the rules are a specificity to the way the interpreter is written in
-JS.  Using the inference rule formalism, rules are only added or
-muted.
+the rules are specific to the way the interpreter is written in JS.
+Using the inference rule formalism, rules are only added or muted.
 
 Generalizing the standard interpreter to allow rules as the unit of
 extension seems an order of magnitude simpler.
