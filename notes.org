@@ -1,5 +1,4 @@
 * The problem
-
 Say we have a monadic interpreter for a toy language.  We want to
 instrument this interpreter: modify the rules to create additional
 side effects, or even change the return value.
@@ -59,7 +58,6 @@ to the original interpreter, we minimize code duplication, and promote
 local reasoning.
 
 ** The expression problem
-
 First, let’s list the additions brought by our extension to the
 interpreter:
 
@@ -95,7 +93,6 @@ declarations of data types and functions.  One could also require both
 extended and original codes to include keywords.)
 
 ** The expression problem, with a twist
-
 The expression problem is only concerned with /adding/ data types and
 functions, but when we instrument an interpreter, we will often want
 to /modify/ its behavior rather than just extend it.
@@ -152,7 +149,6 @@ make sense of the result, but these problems are shared by other AOP
 applications.]
 
 ** The modular instrumentation problem
-
 We have an interpreter I for a language L, and the source code for I.
 We want to instrument the interpreter I, by extending and modifying
 its behavior.  Namely, the instrumentation can:
@@ -192,12 +188,10 @@ question. [“Recognize” I don’t know how.  “Enforce” you can do with
 monads, if you have a monadic interpreter.]
 
 * Exploration
-
 ** JavaScript
 See [[file:../lamfa/aoping.org]].
 
 ** Haskell
-
 Building scaffolding with languages features has the following
 advantages:
 + No extra syntax or rewriting program required
@@ -257,7 +251,6 @@ What we really want is to insert the constructor `Facet` into the
 existing data type `Term`.
 
 **** Type classes
-
 Another suggestion by Rémi.
 
 #+BEGIN_SRC haskell
@@ -282,17 +275,17 @@ overhead is minimal.  Though you still need to have indirect calls.
 Open Data Types paper, in Section 6.4.
 
 ***** Multi-param types classes
-
 #+BEGIN_SRC haskell
 class Eval term value where
   eval :: term -> value
 
 #+END_SRC
 
-Becomes quite complicated.
+Becomes quite complicated rapidly.  First you need an extension, then
+you quickly run into typing issues that are not worth the flexibility
+offered by this strategy.
 
 **** Data types à la carte
-
 From Swierstra, 2008.
 
 [[file:extend-types/Extension.swierstra.hs][A first attempt]]
@@ -325,11 +318,6 @@ See [[file:transform/notes.org]]
   obliviousness is lost
 
 * Discussion
-
-[On the granularity of advices: the function is the boundary.  Messing
-around inside functions is too brittle; you break the barrier of
-abstraction.]
-
 In object-oriented languages, we would have used the mechanisms of
 inheritance and overriding (with the keyword =super=) to solve this
 problem.  In prototype-based languages, we would have used delegation.
@@ -415,7 +403,7 @@ dictionaries, and functions.]
 
 [Examples: modify + to add 2 (change return value); log calls (add side effect)]
 
-** Questions [4/7]
+** Questions [5/7]
 
 - [X] What difficulties arise from having a monadic interpreter as a
   base?  Is it fundamentally different?
@@ -424,8 +412,10 @@ dictionaries, and functions.]
   the monad to pass the Program Counter.  When the interpreter is not
   monadic, it becomes much harder to modify.
 
-- [ ] Why can’t you follow Wadler or Steele and put the whole
+- [X] Why can’t you follow Wadler or Steele and put the whole
   instrumentation inside a monad?
+
+  A: I can’t figure a way to make this work.  See [[Facets as a monad]].
 
 - [X] Writing the interpreter in a monadic style can be considered a
   form of modularization.  So, a monadic interpreter is already “open”
@@ -478,9 +468,7 @@ dictionaries, and functions.]
   and Binder.
 
 ** Downsides to the monadic interpreter approach for modularity
-
 *** Explicit use of monads
-
 You have to explicitly write the interpreter to return monads instead
 of raw values.
 
@@ -492,7 +480,6 @@ great (though there’s still some mode switching required “I have to
 `return` because it expects a monad”).
 
 *** The `lift` uglyness
-
 When using multiple State monad transformers, you must use `lift` to
 access the state you want from the monad stack.  The stack order
 /matters/, but it should not.
@@ -505,7 +492,6 @@ If there are no hidden costs or restrictions, then this is not a
 downside anymore.
 
 *** Limitations for extending cases for pattern matching
-
 You can’t just extend functions with additional cases, since
 functions are closed at definition time.
 
@@ -538,7 +524,6 @@ one monolithic data type (semantically equivalent).  Except when
 textual order of constructors matter.
 
 *** Can’t easily extend the data types either
-
 To add a new AST node, you need to:
 
 1. Extend the `Term` data type
@@ -560,7 +545,6 @@ Basically, the same thing is needed here.  If the AOP library for
 Haskell provided inter-types aspects, then it’s done.
 
 ** Facets as a monad
-
 If the instrumentation of the interpreter was entirely confined to a
 monad, it would be the epitome of modularity (bar the two first points
 above).
@@ -571,11 +555,13 @@ monad?
 The `FacetMonad` could hold a full interpreter with duplicated
 environment, store and program counter.  But that would mean
 duplicating the standard rules.  And that means having a second full
-interpreter with faceted evaluation ... so you just duplicate, not
-really “instrumentation in a modular fashion”.
+interpreter with faceted evaluation ... so you just duplicate, but in
+very a convoluted way.  The result would not be modular, and harder to
+understand than straightforward duplication.
+
+Otherwise in the current state, I have
 
 ** Opening `interp`
-
 Suggested by Rémi.
 
 Instead of opening each case individually, `goRef` or `goIf` and so
@@ -613,7 +599,6 @@ goInterpAdv proceed = proceed
 #+END_SRC
 
 ** Comments
-
 (Ismael): I think we should enumerate all the required changes along
 their nature: data type extension, new case for functions, etc. Doing
 a diff on the LC-standard and LC-facet files yields the following:
@@ -645,7 +630,6 @@ expressive because it lacks a pointcut language (or something along
 these lines).
 
 *** Comparing LC-facets with LC.hs
-
 - Term is extended with the Facet variant
 - Value is extended with the FacetV variant
 - instance of Eq Value is updated with the FacetV variant
@@ -676,7 +660,6 @@ proceed. Actually this can be done using RequirePC (See file
 LC-ismael.hs):
 
 *** Using RequirePC to advice a particular case of goInterp
-
 #+BEGIN_SRC haskell
 -- Require PC for Ref case
 refPC :: Typeable1Monad m => RequirePC m (Term, Environment) b
@@ -704,6 +687,9 @@ achieved using some kind of generative programming. See comments in
 that file for the issues I've encountered so far...
 
 ** Naming functionality is vital
+[On the granularity of advices: the function is the boundary.  Messing
+around inside functions is too brittle; you break the barrier of
+abstraction.]
 
 There’s this very strong tentation to over-factor programs.
 
@@ -867,7 +853,7 @@ using names we refer directly to meanings.  It does not matter which
 alias we use to refer to a particular meaning, like `plus` or `(+)`,
 so long as they refer to the addition between numbers.
 
-The following was added on [2014-09-02 mar.].
+# The following was added on [2014-09-02 mar.].
 
 The distinction made by [[file:~/Archim%C3%A8de/Th%C3%A8se/notes/quotes.org::*On%20the%20distinction%20between%20program,%20procedure%20and%20function][Steele and Sussman]] between program, procedure
 and function sums the problem up.
@@ -880,10 +866,29 @@ sense in its entirety, not piece by piece of it.
 Naming the functionality is therefore the most important step to
 reusability.
 
+# [2014-09-03 mer.]
 
+Olin Shivers has [[https://blogs.janestreet.com/whats-in-a-name][more to say]] on the importance of naming things.
+Names provide distal access.  Without a name, you cannot refer to a
+functionality; you have to repeat it.  With a name, now you can reuse.
+
+As he points out, echoing Steele and Sussman, lexical scoping is
+evident when you think about names.  When writing a function with free
+variables (names), you /need/ the names to refer to the same thing
+when executed as they did when the function was defined.
+
+I would also add that when we make functions first-order in a
+language, we are essentially giving the ability to name them.
+Returning a function or passing it as an argument would not make sense
+without being able to first give a name to the function.
+
+Naming (or more generally, creating a symbol) seems also like the
+principal mechanism for learning in the brain.  When you assimilate a
+new fact, you are drawing an arrow, making connections, hence giving a
+name to the fact.  See the idea of “frames” in “Society of Mind”
+(Minsky).
 
 *** A digression on injective programming
-
 It should be evident that syntactic changes do not imply a change in
 the meaning of the program.  In most languages, whitespace between
 symbols is insignificant when it comes to meaning.
@@ -911,7 +916,6 @@ level,
 : (Program (Plus 0 .))
 
 The two ASTs are different, but the outcome is the same.
-
 
 Parsing is a function from the set of source codes to the set of
 abstract syntax trees.  Its properties depends on the parser we are
