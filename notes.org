@@ -805,6 +805,7 @@ The second adds three numbers, but reuse syntax from the first.
 Now what happens if the first function is rewritten to one the
 /semantically equivalent/,
 
+
 #+BEGIN_SRC haskell
 plus = (+)
 plus a = (+) b
@@ -865,6 +866,21 @@ non-injectivity of semantically-equivalent syntax programs.  Since by
 using names we refer directly to meanings.  It does not matter which
 alias we use to refer to a particular meaning, like `plus` or `(+)`,
 so long as they refer to the addition between numbers.
+
+The following was added on [2014-09-02 mar.].
+
+The distinction made by [[file:~/Archim%C3%A8de/Th%C3%A8se/notes/quotes.org::*On%20the%20distinction%20between%20program,%20procedure%20and%20function][Steele and Sussman]] between program, procedure
+and function sums the problem up.
+
+As the authors show, the program is not the function without lexical
+scoping.  Using ‘...’ for copy pasting the program text in the hope of
+getting the same functionality is hopeless.  The program only makes
+sense in its entirety, not piece by piece of it.
+
+Naming the functionality is therefore the most important step to
+reusability.
+
+
 
 *** A digression on injective programming
 
