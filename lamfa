@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* -*- mode: javascript -*- */
 
 var modes = ['lex', 'parse', 'unparse', 'desugar', 'run', 'ran'];
 
