@@ -403,7 +403,7 @@ dictionaries, and functions.]
 
 [Examples: modify + to add 2 (change return value); log calls (add side effect)]
 
-** Questions [5/7]
+** Questions [7/7]
 
 - [X] What difficulties arise from having a monadic interpreter as a
   base?  Is it fundamentally different?
@@ -457,15 +457,41 @@ dictionaries, and functions.]
 
   A: Open Functions does not give you `proceed`.
 
-- [ ] What happens when the original interpreter and the extensions
+- [X] What happens when the original interpreter and the extensions
   evolve in time?  How can we keep the two interpreters in sync, and
   minimize the overhead?  Especially as AOP introduces a strong
   coupling in the form of pointcuts.
 
-- [ ] What if we don’t have access to the original interpreter’s
+  A: This is out of scope.  Evolution implies changes to the code.
+  Changes can be of two natures:
+
+  - a simple refactoring: code is moved around, things are renamed,
+    functionality is moved in or out of functions.  The point is, the
+    semantics of the program remain the same.
+
+    If you change the exposed interface, you break clients.  If you
+    move code or rename functions, you break your interface to
+    pointcuts, and you break aspects.
+
+    The whole point of modularity is to avoid global changes when
+    making local changes.  At some point though, the cost of retaining
+    the same interface while making lots of internal changes will be
+    too great.
+
+  - a change in the meaning of the program.  Rien ne va plus; all bets
+    are off.
+
+  Since we are presenting just a few ways to write the interpreter and
+  its instrumentation, we cannot guarantee anything when these
+  patterns are changed.  Nor can we say anything about a /different/
+  interpreter.
+
+- [X] What if we don’t have access to the original interpreter’s
   source code.  This is a legitimate scenario.  How do instrument the
-  running code then?  This maybe related to the path taken by Ansaloni
-  and Binder.
+  running code then?
+
+  This maybe related to the path taken by Ansaloni and Binder.
+  “Blind” instrumentation.  But really, this is out of scope.
 
 ** Downsides to the monadic interpreter approach for modularity
 *** Explicit use of monads
