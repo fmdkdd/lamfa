@@ -189,7 +189,7 @@ monads, if you have a monadic interpreter.]
 
 * Exploration
 ** JavaScript
-See [[file:../lamfa/aoping.org]].
+See [[file:js/aoping.org]].
 
 ** Haskell
 Building scaffolding with languages features has the following
@@ -219,8 +219,8 @@ The monadic interpreter is mostly taken from [[http://homepages.inf.ed.ac.uk/wad
   + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
 
 **** Either data type
-See file [[file:extend-types/Extension.fail.1.hs]].  Types are extended
-like so:
+See [[file:hs/extend-types/Extension.fail.1.hs]].  Types are extended like
+so:
 
 : data FacetTerm  = Facet Principal FacetTerm FacetTerm | BaseTerm Term
 
@@ -288,15 +288,15 @@ offered by this strategy.
 **** Data types à la carte
 From Swierstra, 2008.
 
-[[file:extend-types/Extension.swierstra.hs][A first attempt]]
+[[file:hs/extend-types/Extension.swierstra.hs][A first attempt]]
 
-[[file:InterpreterALC.hs][Another one, with Ismael]]
+[[file:hs/InterpreterALC.hs][Another one, with Ismael]]
 
-[[file:ALC-Lambda.hs][Lambda calculus with references and bottom]]
+[[file:hs/ALC-Lambda.hs][Lambda calculus with references and bottom]]
 
-[[file:ALC-Lambda-Facets.hs][Lambda calculus with faceted evaluation]]
+[[file:hs/ALC-Lambda-Facets.hs][Lambda calculus with faceted evaluation]]
 
-[[file:ALC-Facets-Flow.hs][Lambda calculus with faceted evaluation and FlowR tainting]]
+[[file:hs/ALC-Facets-Flow.hs][Lambda calculus with faceted evaluation and FlowR tainting]]
 
 Overview of this scaffolding:
 
@@ -309,9 +309,9 @@ Cons:
   the value type, which would be even /hairier/.
 
 *** Extending the syntax
-See [[file:transform/notes.org]]
+See [[file:hs/transform/notes.org]]
 
-[[file:transform/tests/2/LC.hs][Lambda calculus with FlowR instrumentation]]
+[[file:hs/transform/tests/2/LC.hs][Lambda calculus with FlowR instrumentation]]
 
 - Cannot override existing definitions
 - Extending the monadic stack is best done with scaffolding, though
