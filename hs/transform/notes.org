@@ -1,0 +1,94 @@
+* Candidates for source manipulation
+** Package haskell-src
+https://hackage.haskell.org/package/haskell-src
+
+Straightforward source-to-source transformation.
+
+Main drawback: have to execute the “merging” tool externally.  Bad for
+workflow, good enough for proof of concept?
+
+** Template Haskell
+http://www.haskell.org/haskellwiki/Template_Haskell
+
+Macro capabilities.  Does not suit our purposes.
+
+1. Cannot extend data type declarations.
+2. Have to use extra syntax $() and [| |].
+
+** Language extension?
+Can’t find any ressource on writing an extension.
+
+Diving into GHC source is an option left open.
+
+* Using haskell-src
+How to add syntax to the parser?
+
+Have to extend haskell-src with my own syntax extensions.  This means
+modifying the parser for new grammar rules, the lexer for new
+keywords, and other dependencies.
+* Instrumenting the interpreter with the extended syntax
+How does the extended syntax simplifies writing the instrumentation?
+
+** Extending terms, values and the evaluation function
+FlowR comes with a new term (Lambda with labels) and wraps values with
+labels.
+
+Open data types and open functions makes this a breeze to write.
+
+Though the order of pattern cases in the function `eval` should be
+treated with caution (see Open Data Types).
+
+** Extending the evaluation state
+Variations:
+
+1. Each piece of state comes in its own StateT monad transformer.
+
+   : type State m = StateT Environment (StateT Store m)
+
+   Pros:
+   + Some kind of ‘obliviousness’: adding monad transformers at the
+     bottom of the stack is transparent for the base interpreter.
+
+   Cons:
+   - To add to the bottom of the monad stack, we must explicitly leave
+     a hole in it.  Adding at the top requires inserting `lift`
+     everywhere in the base interpreter.
+
+   - Even when adding state at the bottom of the stack, we have to
+     `lift` `get` and `set` operations in the instrumentation.
+
+2. Each piece of state is a part of an EvalState record that’s part of
+   the monadic stack to the `eval` function.
+
+   #+BEGIN_SRC haskell
+     data EvalState = EvalState { env :: Environment
+                                , store :: Store
+                                , labels :: Labels }
+   #+END_SRC
+
+   Pros:
+   + Each piece of state is independent.  No need to lift; just
+     `gets` with the projection function created from the record
+     sugar syntax.
+
+   Cons:
+   - The record must be entirely known at compile time.  Cannot extend
+     it later, otherwise the construction leaves parts undefined.
+
+   Essentially, this would be a perfectly acceptable and lightweight
+   solution if we could extend data types horizontally as well as
+   vertically.
+
+** Overriding base behavior
+The change in semantics of the `eval (Ref t)` case for facets
+evaluation requires overriding the default behavior.
+
+Under the facets evaluator, `Ref` must create faceted values.  We can
+create a different evaluator, `evalF`, with the desired behavior.  But
+all the base code is written with `eval` calls, not `evalF`.
+
+Overriding from inheritance would work in an OO language.
+
+An ‘around’ advice would work as well.
+
+What’s the canonical way in Haskell?

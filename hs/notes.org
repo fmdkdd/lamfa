@@ -1,0 +1,993 @@
+* The problem
+Say we have a monadic interpreter for a toy language.  We want to
+instrument this interpreter: modify the rules to create additional
+side effects, or even change the return value.
+
+Given the following interpreter for arithmetic expressions:
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int
+  data Value = Number Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Number i)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+#+END_SRC
+
+we want to add a new construct for pairs of integers.  The
+straightforward way is to extend the existing interpreter:
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int | Couple Int Int
+  data Value = Number Int | Pair Int Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Number i)
+  interp (Couple i1 i2) = (Pair i1 i2)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+  plus (Number a) (Pair i1 i2) = (Pair (a + i1) (a + i2))
+  plus (Pair i1 i2) (Number a) = (Pair (a + i1) (a + i2))
+#+END_SRC
+
+But the obvious downside of this approach is that we cannot make
+changes to the original interpreter without having to manually
+replicate these changes in the extended interpreter.  Replicating the
+changes is time-consuming and prone to error.
+
+Furthermore, the extended interpreter code makes no distinction
+between the original code and the extension code; the two are merged
+together.  Thus, to be able to reason about the changes brought by the
+extension, we must always compare both programs.  We cannot reason
+about the extension in isolation.
+
+These downsides are caused by the /accidental/ duplication of code for
+the original interpreter.  Conceptually, we want to reuse the behavior
+the orginal code provides, but not the code itself.  Copying the code
+is an easy way to reuse the original behavior, but bears the costs
+mentionned above: code replication and unability to reason locally.
+
+Is there a better way?  A /differential description/ of the extension
+eliminates both issues.  If we describe only the additions and changes
+to the original interpreter, we minimize code duplication, and promote
+local reasoning.
+
+** The expression problem
+First, let’s list the additions brought by our extension to the
+interpreter:
+
+- we add a new constructor =Couple= to the data type =Term=
+- we add a new constructor =Pair= to the data type =Value=
+- we add a new case =Couple= to the function =interp=
+- we add two new (symmetric) cases =Pair= to the function =plus=
+
+Now, what would a differential description of the extension to our
+interpreter look like?
+
+#+BEGIN_SRC haskell
+  extend data Term = Couple Int Int
+  extend data Value = Pair Int Int
+
+  extend interp (Couple i1 i2) = (Pair i1 i2)
+  extend plus (Number a) (Pair i1 i2) = (Pair (a + i1) (a + i2))
+  extend plus (Pair i1 i2) (Number a) = (Pair (a + i1) (a + i2))
+#+END_SRC
+
+These are all the additions brought by the extension to the original
+interpreter.  The new =extend= keyword allows us to:
+
+1. Extend data types with new constructors.
+2. Extend function definitions with new cases.
+
+How to extend both data types and functions in a program, without
+sacrificing modularity, is a problem known as the /expression problem/
+[Wadler].  This (imaginary) =extend= keyword is a solution; there are
+real solutions [[[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]]] (Instead of an
+=extend= keyword, they provide an =open= keyword to prefix to initial
+declarations of data types and functions.  One could also require both
+extended and original codes to include keywords.)
+
+** The expression problem, with a twist
+The expression problem is only concerned with /adding/ data types and
+functions, but when we instrument an interpreter, we will often want
+to /modify/ its behavior rather than just extend it.
+
+When we take modification into account, what does a differential
+description look like?
+
+First, let’s go back to the original interpreter, and modify its
+behavior.
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int
+  data Value = Number Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Number i)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+#+END_SRC
+
+Say we need to change the value returned by the interpretation of the
+term ‘Constant’.  We want to return a ‘Pair’ value instead of a single
+number, the second value being a default zero.  We would write the
+full version, with replication as:
+
+#+BEGIN_SRC haskell
+  data Term = Plus Term Term | Constant Int
+  data Value = Number Int | Pair Int Int
+
+  interp :: Term -> Value
+  interp (Plus t1 t2) = plus (interp t1) (interp t2)
+  interp (Constant i) = (Pair i 0)
+
+  plus :: Value -> Value -> Value
+  plus (Number a) (Number b) = (Number (a + b))
+#+END_SRC
+
+What would be the differential description of this change?
+
+#+BEGIN_SRC haskell
+  extend data Value = Pair Int Int
+
+  modify interp (Constant i) = (Pair i 0)
+#+END_SRC
+
+The keyword =modify= replaces the definition for the targeted case of
+=interp=.
+
+[What if we want to combine multiple modifications to the same case
+function? A: You’d have to have a clue about the precedence order to
+make sense of the result, but these problems are shared by other AOP
+applications.]
+
+** The modular instrumentation problem
+We have an interpreter I for a language L, and the source code for I.
+We want to instrument the interpreter I, by extending and modifying
+its behavior.  Namely, the instrumentation can:
+- add terms to the base language
+- add values to the base language
+- add new operations
+- alter the behavior of existing operations, or even suppress them
+  entirely.
+
+We constrain the instrumentation by imposing the following
+restrictions:
+
+- The instrumented interpreter I’ must still be able to execute
+  programs written in the language L.  The instrumentation cannot
+  remove or modify existing terms of the language.
+- The instrumentation must modify only a part of the original
+  interpreter operations.  Otherwise, the instrumented interpreter
+  may end up with semantics so different from the original interpreter
+  that it does not qualify as “instrumentation” anymore; it might as
+  well be another interpreter in its own right.
+
+The implementation of this instrumentation will give a new interpreter
+I’.  Ideally, this implementation should be as modular as possible; it
+should:
+- promote isolated reasoning,
+- minimize code replication and accidental complexity.  We should be
+  able to map the differential description of the instrumentation and
+  the code for its implementation.
+
+The /modular instrumentation problem/ is then: how to implement the
+instrumentation with the above constraints of modularity?
+
+Note that the changes may bring only additional side effects, and
+leave the original behavior unaltered.  How to recognize or enforce
+“side-effects only” instrumentation is an interesting
+question. [“Recognize” I don’t know how.  “Enforce” you can do with
+monads, if you have a monadic interpreter.]
+
+* Exploration
+** JavaScript
+See [[file:../lamfa/aoping.org]].
+
+** Haskell
+Building scaffolding with languages features has the following
+advantages:
++ No extra syntax or rewriting program required
++ In statically-typed Haskell, the scaffolding is type-checked
+
+Downsides:
+- The scaffolding might is seldom straightforward
+- Extension + overriding of existing definitions leads to very complex
+  code
+
+Extending the syntax is the same, with pros and cons inversed:
+- Extra syntax and rewriting program required
+- Rewritten program is type-checked, but transformation must be proven
+  correct
+
+Advantages:
++ Lightweight syntax is straightforward to use
+- Overriding it still awkward to read
+
+*** Building scaffolding with language features
+**** Monadic interpreters
+The monadic interpreter is mostly taken from [[http://homepages.inf.ed.ac.uk/wadler/papers/essence/essence.ps][Wadler]].
+
+- [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]]
+  + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
+
+**** Either data type
+See file [[file:extend-types/Extension.fail.1.hs]].  Types are extended
+like so:
+
+: data FacetTerm  = Facet Principal FacetTerm FacetTerm | BaseTerm Term
+
+***** What does work
+- Maximum reuse from the file ‘Base.hs’
+- Able to execute `term0` and `term1`
+
+***** What fails
+- `term2` gives a type error:
+    “Couldn't match expected type `Term' with actual type `FacetTerm'”
+
+: term2 = (Lam "y" (Facet 0 (BaseTerm (Lam "x" Bot)) (BaseTerm Bot)))
+
+- Also, have to wrap Base.Term values with the BaseTerm constructor
+
+***** What I wanted
+- `eval term2` gives the same result as when using Extended.eval.
+
+- The raw term1 and term2 should type without wrapping values.
+
+***** Why it doesn’t work
+A FacetTerm is either a Facet or a BaseTerm.  A Facet can contain
+FacetTerms (and hence BaseTerms), but since BaseTerms are just Terms,
+they cannot contain Facets.
+
+***** Conclusion
+What we really want is to insert the constructor `Facet` into the
+existing data type `Term`.
+
+**** Type classes
+Another suggestion by Rémi.
+
+#+BEGIN_SRC haskell
+interp :: Dom d => Term -> d
+interp (Add l r) = myAdd (interp l) (interp r)
+
+class Dom d where
+  myAdd :: d -> d -> d
+
+instance Dom Int where
+  myAdd = +
+
+instance Dom OddOrEven where
+  myAdd = xor
+#+END_SRC
+
+Here you must generalize the interpreter, to accomodate multiple
+domains.  But at least the generalization is done using types: the
+overhead is minimal.  Though you still need to have indirect calls.
+
+> Ismael: Some disadvantages of this approach are discussed in the
+Open Data Types paper, in Section 6.4.
+
+***** Multi-param types classes
+#+BEGIN_SRC haskell
+class Eval term value where
+  eval :: term -> value
+
+#+END_SRC
+
+Becomes quite complicated rapidly.  First you need an extension, then
+you quickly run into typing issues that are not worth the flexibility
+offered by this strategy.
+
+**** Data types à la carte
+From Swierstra, 2008.
+
+[[file:extend-types/Extension.swierstra.hs][A first attempt]]
+
+[[file:InterpreterALC.hs][Another one, with Ismael]]
+
+[[file:ALC-Lambda.hs][Lambda calculus with references and bottom]]
+
+[[file:ALC-Lambda-Facets.hs][Lambda calculus with faceted evaluation]]
+
+[[file:ALC-Facets-Flow.hs][Lambda calculus with faceted evaluation and FlowR tainting]]
+
+Overview of this scaffolding:
+
+Pros:
++ Allows type-checked extension of terms
+
+Cons:
+- Quite hairy
+- Cannot change the resulting value with using the same approach for
+  the value type, which would be even /hairier/.
+
+*** Extending the syntax
+See [[file:transform/notes.org]]
+
+[[file:transform/tests/2/LC.hs][Lambda calculus with FlowR instrumentation]]
+
+- Cannot override existing definitions
+- Extending the monadic stack is best done with scaffolding, though
+  obliviousness is lost
+
+* Discussion
+In object-oriented languages, we would have used the mechanisms of
+inheritance and overriding (with the keyword =super=) to solve this
+problem.  In prototype-based languages, we would have used delegation.
+[Not necessarily ... in JavaScript we get by using only objects as
+dictionaries, and functions.]
+
+#+BEGIN_SRC java
+  interface Term {
+    Value interp();
+  }
+
+  class Constant implements Term {
+    int i = 0;
+    Constant(int i) { this.i = i; }
+    Value interp() { return new Number(this.i); }
+  }
+
+  interface Value<T> {
+    T get();
+  }
+
+  class Number implements Value<Integer> {
+    int i;
+    Number(int i) { this.i = i; }
+    Integer get() { return this.i; }
+  }
+
+  class Plus implements Term {
+    Term t1, t2;
+    Plus(Term t1, Term t2) { this.t1 = t1; this.t2 = t2; }
+    Value interp() { return plus(t1.interp(), t2.interp()); }
+
+    Value plus(Number a, Number b) {
+      return a + b;
+    }
+  }
+
+  class Constant42a extends Constant {
+    @override
+    Value interp() { Value r = super.interp(); return new Number(r.get()); }
+  }
+
+  class Constant42b extends Constant {
+    @override
+    Value interp() { this.i *= 42; return super.interp(); }
+  }
+#+END_SRC
+
+#+BEGIN_SRC javascript
+  var terms = {
+    Constant: function(i) { return { type: 'Constant', i: i }; },
+    Plus: function(a, b) { return { type: 'Plus', a: a, b: b }; },
+  };
+
+  var values = {
+    Number: function(i) { return { type: 'Number', value: i }},
+  };
+
+  var rules = {
+    Constant: function(term) {
+      return values.Number(term.i);
+    },
+
+    Plus: function(term) {
+      return dispatch(plus, interp(term.a), interp(term.b));
+    },
+  };
+
+  var plus = {
+    'Number-Number': function(a, b) {
+      return a.value + b.value;
+    },
+  }
+
+  function dispatch(functions, arg1, arg2) {
+    functions[arg1.type + '-' + arg2.type](arg1, arg2);
+  }
+
+  function interp(term) {
+    rules[term.type](term);
+  }
+#+END_SRC
+
+[Examples: modify + to add 2 (change return value); log calls (add side effect)]
+
+** Questions [7/7]
+
+- [X] What difficulties arise from having a monadic interpreter as a
+  base?  Is it fundamentally different?
+
+  A: When the interpreter is monadic, it’s easy to change the type of
+  the monad to pass the Program Counter.  When the interpreter is not
+  monadic, it becomes much harder to modify.
+
+- [X] Why can’t you follow Wadler or Steele and put the whole
+  instrumentation inside a monad?
+
+  A: I can’t figure a way to make this work.  See [[Facets as a monad]].
+
+- [X] Writing the interpreter in a monadic style can be considered a
+  form of modularization.  So, a monadic interpreter is already “open”
+  to extension in a certain way.  Why not assume that the interpreter
+  is already amenable to instrumentation; assume it already defines
+  hooks for instrumentation purposes?
+
+  A: Ideally, the way we implement the interpreter should not impact
+  the implementation of the instrumentation.  The interpreter could be
+  monadic, it could include hooks.  Or not.  The implementation
+  choices should not influence the implementation choices of the
+  instrumentation.
+
+  What this means is that we should decouple the implementation of the
+  instrumentation from the implementation of the interpreter.  We
+  should treat the latter as a black box.  The instrumentation
+  implementer should not break the barrier of abstraction and look at
+  how the interpreter code works for writing her own.  Then, the only
+  solution is for the two parties to agree on an extension interface
+  for the interpreter.
+
+- [X] How to define such an interface modularly?
+
+  A: Joinpoints already provide “hooks” for the instrumentation.  But
+  not all joinpoints are of interest for the instrumentation.  The
+  interpreter must provide hooks like “around ref”.  An elegant way to
+  provide them is to use AOP.
+
+  We get the following three components; each line interacts with the
+  one above only (low coupling).
+
+  + interpreter, written in language X
+  + extension interface, defined by exposing joinpoints
+  + instrumentation, written in language X, with pointcuts on the
+    extension interface
+
+- [X] How is this not already solved by Open Data Types and Open
+  Functions?
+
+  A: Open Functions does not give you `proceed`.
+
+- [X] What happens when the original interpreter and the extensions
+  evolve in time?  How can we keep the two interpreters in sync, and
+  minimize the overhead?  Especially as AOP introduces a strong
+  coupling in the form of pointcuts.
+
+  A: This is out of scope.  Evolution implies changes to the code.
+  Changes can be of two natures:
+
+  - a simple refactoring: code is moved around, things are renamed,
+    functionality is moved in or out of functions.  The point is, the
+    semantics of the program remain the same.
+
+    If you change the exposed interface, you break clients.  If you
+    move code or rename functions, you break your interface to
+    pointcuts, and you break aspects.
+
+    The whole point of modularity is to avoid global changes when
+    making local changes.  At some point though, the cost of retaining
+    the same interface while making lots of internal changes will be
+    too great.
+
+  - a change in the meaning of the program.  Rien ne va plus; all bets
+    are off.
+
+  Since we are presenting just a few ways to write the interpreter and
+  its instrumentation, we cannot guarantee anything when these
+  patterns are changed.  Nor can we say anything about a /different/
+  interpreter.
+
+- [X] What if we don’t have access to the original interpreter’s
+  source code.  This is a legitimate scenario.  How do instrument the
+  running code then?
+
+  This maybe related to the path taken by Ansaloni and Binder.
+  “Blind” instrumentation.  But really, this is out of scope.
+
+** Downsides to the monadic interpreter approach for modularity
+*** Explicit use of monads
+You have to explicitly write the interpreter to return monads instead
+of raw values.
+
+Though one could argue that it’s just a clearer way to write an
+interpreter from the start.
+
+With Haskell’s syntactic sugar for unit and bind, the cost is not that
+great (though there’s still some mode switching required “I have to
+`return` because it expects a monad”).
+
+*** The `lift` uglyness
+When using multiple State monad transformers, you must use `lift` to
+access the state you want from the monad stack.  The stack order
+/matters/, but it should not.
+
+Ismael tells me there are workarounds, a library that allows you to
+name the monad transformers and access them by name instead of using
+lift (I guess it does the lifting for you).
+
+If there are no hidden costs or restrictions, then this is not a
+downside anymore.
+
+*** Limitations for extending cases for pattern matching
+You can’t just extend functions with additional cases, since
+functions are closed at definition time.
+
+For instance, adding the evaluation of a new `Facet` AST node requires
+adding a new case to `interp`.
+
+#+BEGIN_SRC haskell
+interp (Facet p t1 t2) e =
+  do vH <- interp t1 e
+     vL <- interp t2 e
+     return (FacetV p vH vL)
+#+END_SRC
+
+But this can’t be done in another file, even though Haskell allows you
+to write non-exhaustive functions ...
+
+Using Ismael’s AOP library for Haskell, you can work around it, though
+it requires some additional rewriting of the code for technical
+reasons (supposedly this could be hidden by sugar).
+
+In any case, you lose the ability to write your extensions *like you
+would write* the original code.
+
+This problem seems solved by [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular
+Interpreters]].  It is also definitely solved by [[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and
+Open Functions]].
+
+The latter also allows you to think of open data type extensions as
+one monolithic data type (semantically equivalent).  Except when
+textual order of constructors matter.
+
+*** Can’t easily extend the data types either
+To add a new AST node, you need to:
+
+1. Extend the `Term` data type
+2. Add a new case to `interp` for this new Term
+
+Here again, the data type definition is closed.  No reflection
+mechanisms to extend it?  Are there workarounds?
+
+[[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]] define OR types for this
+purpose.  It does not feel very natural to write, but at least if the
+mechanism is there, we could hide it with sugar.
+
+[[http://www.andres-loeh.de/OpenDatatypes.pdf][Open Data Types and Open Functions]] solves the problem in a modular
+way: extensions to the data type can happen in other modules.
+
+The “inter-types aspects” of AspectJ allow modifying the static
+structure of an existing class, by extending its members or methods.
+Basically, the same thing is needed here.  If the AOP library for
+Haskell provided inter-types aspects, then it’s done.
+
+** Facets as a monad
+If the instrumentation of the interpreter was entirely confined to a
+monad, it would be the epitome of modularity (bar the two first points
+above).
+
+Can this be achieved?  Can we embed the faceted evaluation inside a
+monad?
+
+The `FacetMonad` could hold a full interpreter with duplicated
+environment, store and program counter.  But that would mean
+duplicating the standard rules.  And that means having a second full
+interpreter with faceted evaluation ... so you just duplicate, but in
+very a convoluted way.  The result would not be modular, and harder to
+understand than straightforward duplication.
+
+Otherwise in the current state, I have
+
+** Opening `interp`
+Suggested by Rémi.
+
+Instead of opening each case individually, `goRef` or `goIf` and so
+on, we can open `interp` directly.
+
+#+BEGIN_SRC haskell
+interp t e = goInterp # (t,e)
+
+goInterp (Bot,e) = return Bottom
+goInterp ((Con i),e) = return (Constant i)
+...
+#+END_SRC
+
+If the pointcut language has an `if` construct that can match on
+arguments, we can dispatch advices depending on the term argument.
+
+I > We can use the RequirePC special pointcut. I added an example in the
+I > source code.
+
+#+BEGIN_SRC haskell
+deploy (aspect (and (pcCall goInterp) (match (Ref t))) goIfAdv)
+#+END_SRC
+
+Our pointcut language does not allow us to match like this, but at the
+very least we could contain advices in a `goInterpAdv` function.
+
+#+BEGIN_SRC haskell
+deploy (aspect (and (pcCall goInterp)) goInterpAdv)
+
+goInterpAdv proceed args@((If cond thn els), e) =
+  -- code for goIfAdv
+
+-- fall through
+goInterpAdv proceed = proceed
+#+END_SRC
+
+** Comments
+(Ismael): I think we should enumerate all the required changes along
+their nature: data type extension, new case for functions, etc. Doing
+a diff on the LC-standard and LC-facet files yields the following:
+
+- Term is extended with the Facet variant
+- Value is extended with the FacetV variant
+- instance of Eq Value is updated with the FacetV variant
+- instance of Show Value is updated with the FacetV variant
+- Modification of type M (new StateT)
+- New runM function  (caused by the change to M)
+- New case (Facet p t1 t2) added to interp
+- Case (Ref t) is modified by what it looks like an around advice
+- New case (Facet p t1 t2) added to helper function deref
+- In helper function assign, Case (Address a) is modified by what it looks like an around advice
+- New case (FacetV p vh vl) added to helper function assign
+- New case (FacetV p vh vl) added to helper function apply
+
+I propose that the contribution of the paper is a comparison or
+classification of the kinds of extensibility that are desirable for a
+modular instrumentation of a monadic interpreter. For extending data
+types we can use the Either approach of Hudak (or maybe both
+approaches are useful), and for adding cases we use AOP. Then we
+discuss the benefits/drawbacks of this approach vs the Open Data Types
+and Open Functions.
+
+What we bring to attention is that AOP is (unsurprisingly) helpful to
+define "open functions". Whereas the approach of Open Data... is less
+expressive because it lacks a pointcut language (or something along
+these lines).
+
+*** Comparing LC-facets with LC.hs
+- Term is extended with the Facet variant
+- Value is extended with the FacetV variant
+- instance of Eq Value is updated with the FacetV variant
+- instance of Show Value is updated with the FacetV variant
+- New type M, now using AOT
+- New runM function, where all aspects are deployed
+- New case (Facet p t1 t2) added to helper function deref
+- In interp: Case (Ref t) is refactored adding a goRef function which is open to weaving
+- Similar change for deref function.
+- Similar change for assing function.
+- It would be more symmetric if all introductions of # were at the same level, e.g. at the interpreter.
+- Same change for apply
+
+Ismael >
+
+A conclusion for this simple analysis is that to add new cases to
+interp we also need to make it advisable, following Rèmi's suggestion
+outlined above. In other words, if we allow for new variants to Term,
+we *need* an open interp. I think this is not mutually exclusive with
+the goFoo pattern, because when extending some behavior we actually
+require access to the default implementation (e.g. in the (Ref t)
+case, we need proceed to refer to the goRef default implementation).
+
+Maybe this highlights the need for an extension of the pointcut
+language: to be able to target a function with a specific case, while
+still being able to refer to the default implementation by using
+proceed. Actually this can be done using RequirePC (See file
+LC-ismael.hs):
+
+*** Using RequirePC to advice a particular case of goInterp
+#+BEGIN_SRC haskell
+-- Require PC for Ref case
+refPC :: Typeable1Monad m => RequirePC m (Term, Environment) b
+refPC = RequirePC $ return (\ jp -> case unsafeCoerce jp of
+                               (Jp _ _ ((Ref t, _))) -> return True
+                               _ -> return False)
+
+-- note the unsafeCoerce is actually safe because... *read TAOSD paper Section 4.1*
+
+-- i13n
+runM :: M Value -> ProgCounter -> Store -> ((Value, ProgCounter), Store)
+runM m pc s = runIdentity (runStateT (runStateT (runAOT prog) pc) s)
+ where prog = do
+           -- deploy (aspect (pcCall goRef) goRefAdv)       -- i13n
+           deploy (aspect (pcAnd (pcCall goInterp) refPC) goRefAdv)
+           deploy (aspect (pcCall goDeref) goDerefAdv)   -- i13n
+           deploy (aspect (pcCall goAssign) goAssignAdv) -- i13n
+           deploy (aspect (pcCall goApply) goApplyAdv)   -- i13n
+           m
+#+END_SRC
+
+To me, the "epitome of modularity" would being able to something
+like what is sketched in LC-ismael-ideal.hs. It seems this can be
+achieved using some kind of generative programming. See comments in
+that file for the issues I've encountered so far...
+
+** Naming functionality is vital
+[On the granularity of advices: the function is the boundary.  Messing
+around inside functions is too brittle; you break the barrier of
+abstraction.]
+
+There’s this very strong tentation to over-factor programs.
+
+Syntactical repetition is easy to spot, but it does not always
+indicates a functional duplication.
+
+Let’s take an example.  These two pattern cases of the `eval` function
+have strong syntactic and functional similarities.
+
+#+BEGIN_SRC haskell
+eval (Ref t) =
+  eval t >>= \v ->
+  gets store >>= \s ->
+  let addr = length s in
+  puts inStore ((addr,v) : s) >>
+  return (Address addr)
+#+END_SRC
+
+#+BEGIN_SRC haskell
+eval (FRef t) =
+  eval t >>= \v ->
+  gets store >>= \s ->
+  let addr = length s in
+  gets progCounter >>= \pc ->
+  let fv = createFacetValue pc v Bottom in
+  puts inStore ((addr,fv) : s) >>
+  return (Address addr)
+#+END_SRC
+
+In fact, here is the second function again, where the lines identical to
+the first function are rendered as a dot.
+
+#+BEGIN_SRC haskell
+eval (FRef t) =
+  .
+  .
+  .
+  gets progCounter >>= \pc ->
+  let fv = createFacetValue pc v Bottom in
+  puts inStore ((addr,fv) : s) >>
+  .
+#+END_SRC
+
+Three lines are changed: two are completely new, and one is only
+slightly altered.  Actually, there’s only one identifier that changes
+in the third line, so we can go further, and highlight changes at the
+symbol level.
+
+#+BEGIN_SRC haskell
+eval (FRef t) =
+  . . . . .
+  . . . . .
+  . . . . . .
+  gets progCounter >>= \pc ->
+  let fv = createFacetValue pc v Bottom in
+  . . ....fv. . .. .
+  . .. ..
+#+END_SRC
+
+Now we have fully isolated the syntactic changes made in the second
+version.
+
+However, how do these syntactic changes relate to semantic changes?
+Different source codes, or ASTs, can evaluate to the same outcome (see
+[[A digression on injective programming]]).  If I change a symbol in the
+program, do I change its meaning?  Maybe!  It depends; not only it
+depends on the symbol, but also on its surrounding context.
+
+The temptation I am too often victim of is to try to eliminate the
+syntactic duplication symbolized by dots in the examples above.
+
+Instead of repeating myself, I would like to write:
+
+#+BEGIN_SRC haskell
+eval (FRef t) = same as `eval (Ref t)` except for
+  [..]
+  gets progCounter >>= \pc ->
+  let fv = createFacetValue pc v Bottom in
+  . . ....fv. . .. .
+  --
+#+END_SRC
+
+Here `[..]`, `--` and `.` represent any number of lines, any line, and
+any character respectively.
+
+Such conciseness.  Much economy.  So fragile.
+
+This new version is brittle; any syntactic change (again, not
+necessarily semantic), can alter the semantics of the second version.
+
+Here is why.  This first function is an innocuous ‘plus’.
+
+: plus a b = a + b
+
+The second adds three numbers, but reuse syntax from the first.
+
+: plus3 a b c = . . . + c
+
+Now what happens if the first function is rewritten to one the
+/semantically equivalent/,
+
+
+#+BEGIN_SRC haskell
+plus = (+)
+plus a = (+) b
+plus = \a -> \b -> a + b
+plus a b = 0 + a + b
+plus a b = 0 + a + 0 + b
+...
+#+END_SRC
+
+Each of these are valid ways to declare a function plus, and all will
+(or should) compile to the /exact same/ binary code.  But the `plus3`
+function will be ill-defined for all these variants.
+
+This problem stems from the fact that there are infinitely many ways
+to write a program that produces an addition.
+
+The intent behind the syntactic ellipses in `plus3` is really
+semantic.  What is meant is,
+
+: [| plus a b |] = [| a |] + [| b |]
+
+(where ‘[|’ and ‘|]’ are brackets of denotational semantics).
+
+We know that `plus` is standard addition between two values (hopefully
+numbers).
+
+And we want to define `plus3`, the addition between 3 values.  We
+write
+
+: [| plus3 a b c |] = [| a + b + c |]
+
+But this is clearly repeating ourselves; the addition between two
+numbers was already defined.  So we then write
+
+: [| plus3 a b c |] = [| ...  + c |]
+
+which is to say, “I want the meaning given by the elided syntax.
+Explicitly,
+
+: [| plus3 a b c |] = [| [| a + b |]  + c |]
+
+Except that I cannot reuse the meaning of the syntax as one piece
+until I *name* it.  Which I did, in this example; so that I can write
+
+: [| plus3 a b c |] = [| [| plus a b |]  + c |]
+
+But in the Ref/FRef example, the parts I want to reuse have no name.
+Is that it?  Is that all I’m lacking, a name for the semantic action I
+need to reuse?
+
+Once `plus` has a name I can reuse in the definition of `plus3`, I
+don’t care for syntactic changes in its operational definition.  So
+long as its /semantics/ stay the same, the name will be used to /mean/
+the addition of two numbers.
+
+The name introduces a binding for a meaning.  In a way, it solves the
+non-injectivity of semantically-equivalent syntax programs.  Since by
+using names we refer directly to meanings.  It does not matter which
+alias we use to refer to a particular meaning, like `plus` or `(+)`,
+so long as they refer to the addition between numbers.
+
+# The following was added on [2014-09-02 mar.].
+
+The distinction made by [[file:~/Archim%C3%A8de/Th%C3%A8se/notes/quotes.org::*On%20the%20distinction%20between%20program,%20procedure%20and%20function][Steele and Sussman]] between program, procedure
+and function sums the problem up.
+
+As the authors show, the program is not the function without lexical
+scoping.  Using ‘...’ for copy pasting the program text in the hope of
+getting the same functionality is hopeless.  The program only makes
+sense in its entirety, not piece by piece of it.
+
+Naming the functionality is therefore the most important step to
+reusability.
+
+# [2014-09-03 mer.]
+
+Olin Shivers has [[https://blogs.janestreet.com/whats-in-a-name][more to say]] on the importance of naming things.
+Names provide distal access.  Without a name, you cannot refer to a
+functionality; you have to repeat it.  With a name, now you can reuse.
+
+As he points out, echoing Steele and Sussman, lexical scoping is
+evident when you think about names.  When writing a function with free
+variables (names), you /need/ the names to refer to the same thing
+when executed as they did when the function was defined.
+
+I would also add that when we make functions first-order in a
+language, we are essentially giving the ability to name them.
+Returning a function or passing it as an argument would not make sense
+without being able to first give a name to the function.
+
+Naming (or more generally, creating a symbol) seems also like the
+principal mechanism for learning in the brain.  When you assimilate a
+new fact, you are drawing an arrow, making connections, hence giving a
+name to the fact.  See the idea of “frames” in “Society of Mind”
+(Minsky).
+
+*** A digression on injective programming
+It should be evident that syntactic changes do not imply a change in
+the meaning of the program.  In most languages, whitespace between
+symbols is insignificant when it comes to meaning.
+
+: [[1 + 2]] = [[1+2]]
+
+Actually, in these languages, whitespace is discarded at the parsing
+phase.  So the programs `1 + 2` and `1+2` are parsed to the same
+abstract syntax tree.
+
+: (Program (PlusSymbol (Constant 1) (Constant 2)))
+
+If two programs differ in syntax but are parsed to the same AST, then
+we should expect they evaluate to the same outcome.
+
+But we can also consider duplication at the AST level.
+
+: (Program (PlusSymbol (Constant 1) (Constant 2)))
+
+: (Program (Plus 0 (PlusSymbol (Constant 1) (Constant 2))))
+
+These two lines are similar.  Highlighting differences at the AST node
+level,
+
+: (Program (Plus 0 .))
+
+The two ASTs are different, but the outcome is the same.
+
+Parsing is a function from the set of source codes to the set of
+abstract syntax trees.  Its properties depends on the parser we are
+talking about.
+- Safe to say that parsing is not injective for most languages: one
+  AST can be the image of an infinity of source codes
+  (e.g. extraneous whitespace).
+
+  If we ignore comments and extraneous whitespace, is parsing
+  injective?  Again, it depends on the parser and language.  We can
+  easily craft a non-injective trivial parser: all source codes map to
+  `Program`.  We can also be careful and construct an injective
+  parser.
+
+  The more interesting question is: what are the benefits of an
+  injective parser?
+
+- Is parsing surjective?  Probably not when considering the set of all
+  ASTs for a given language.  In most languages, we can craft bogus
+  ASTs that could not be the result of parsing.
+
+  Again, what are the benefits of a surjective parser?
+
+If parsing is bijective, then we have a clear benefit: any AST can be
+mapped back to its source.
+
+Evaluation is a function from the set of abstract syntax trees to the
+set of values.  We can ask the same questions.
+- Is evaluation injective?  Most certainly not.  Consider a calculator
+  language.  The two programs `(Plus 1 0)` and `(Plus 0 1)` have
+  different ASTs, but evaluate to the same outcome, the value ‘1’.
+
+  For evaluation to be injective, we would have to craft our ASTs such
+  that there is only one way to write a program with outcome ‘1’.  I
+  guess such a language would not be very useful for computation.
+
+- Is evaluation surjective?  Depends on the values we choose.  A
+  calculator language with the natural integers as co-domain will
+  surely be surjective.
+
+‘Injective’ or ‘reversible’ programming is apparently [[http://dl.acm.org/citation.cfm?id=1366239][a thing]].  And
+it’s not that useless!  We can even find traces of it in [[http://www-formal.stanford.edu/jmc/inversion.pdf][The Inversion
+of Functions Defined by Turing Machines]].
+
+Though they seem to consider (in the Janus language) a relaxed form of
+injectivity.  Namely, we can still add dead code that changes the
+syntax but not the semantics (switch `x1 += 1` and `x2 += 2`).  In
+effect, there are infinitely many programs that evaluates to the same
+value; the evaluation function is not injective.
