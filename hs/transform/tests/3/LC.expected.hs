@@ -21,6 +21,7 @@ data Term = Bot
           | Let Name Term Term
           | Seq Term Term
           | LamR Name Labels Term
+          | Facet Principal Term Term
           deriving (Show, Eq)
 
 data Value = Bottom
@@ -28,6 +29,7 @@ data Value = Bottom
            | Address Int
            | Closure Name Term Environment
            | ValueR Value Labels
+           | FacetV Principal Value Value
            deriving (Show, Eq)
 
 type Environment = [(Name, Value)]
@@ -35,10 +37,13 @@ type Store = [(Address, Value)]
 
 data EvalState = EvalState { env :: Environment
                            , store :: Store }
-                 | EvalStateR { env :: Environment
-                              , store :: Store
-                              , labels :: Labels }
-                 deriving Show
+               | EvalStateR { env :: Environment
+                            , store :: Store
+                            , labels :: Labels }
+               | EvalStateF { env :: Environment
+                            , store :: Store
+                            , progCounter :: ProgCounter }
+               deriving Show
 
 -- Boilerplate modification functions
 inEnv :: (Environment -> Environment) -> EvalState -> EvalState
@@ -46,9 +51,6 @@ inEnv f s = s { env = f (env s) }
 
 inStore :: (Store -> Store) -> EvalState -> EvalState
 inStore f s = s { store = f (store s) }
-
-inLabels :: (Labels -> Labels) -> EvalState -> EvalState
-inLabels f s = s { labels = f (labels s) }
 
 puts :: MonadState s m => ((a -> b) -> s -> s) -> b -> m ()
 puts f v = modify (f (\_ -> v))
@@ -78,6 +80,12 @@ eval (App f v) =
 eval (LamR x l body) =
   eval (Lam x body) >>= \c ->
   return (ValueR c l)
+
+-- FIXME: should yield terms, not values
+eval (Facet p t1 t2) =
+  eval t1 >>= \h ->
+  eval t2 >>= \l ->
+  return (FacetV p h l)
 
 eval (Ref t) =
   eval t >>= \v ->
@@ -124,6 +132,20 @@ apply :: Value -> Value -> M Value
 apply Bottom _ = return Bottom
 apply (Closure x body env) v = withEnv ((x,v) : env) (eval body)
 
+apply (FacetV p vH vL) v2 =
+  gets progCounter >>= \pc ->
+  if (p,True) `elem` pc
+  then apply vH v2
+  else
+    if (p,False) `elem` pc
+    then apply vL v2
+    else puts inProgCounter ((p,True):pc) >>
+         apply vH v2 >>= \vH' ->
+         puts inProgCounter ((p,False):pc) >>
+         apply vL v2 >>= \vL' ->
+         puts inProgCounter pc >>
+         return (createFacetValue [(p,True)] vH' vL')
+
 withEnv :: (MonadState EvalState m) => Environment -> m b -> m b
 withEnv e f =
     gets env >>= \old ->
@@ -143,6 +165,9 @@ term0 = (App (Lam "x" (Var "x")) (Con 10))
 -- FlowR instrumentation
 
 type MR = WriterT (TraceR Value) M
+
+inLabels :: (Labels -> Labels) -> EvalState -> EvalState
+inLabels f s = s { labels = f (labels s) }
 
 evalR :: Term -> MR Value
 -- override default behavior for App
@@ -254,3 +279,49 @@ termSeq = (Let "x" (Ref (Con 1))
 
 ---------------------------------------------------------
 -- Facets instrumentation
+
+type Principal = Int
+type Branch    = (Principal,Bool)
+
+type ProgCounter = [Branch] -- i13n
+
+inProgCounter :: (ProgCounter -> ProgCounter) -> EvalState -> EvalState
+inProgCounter f s = s { progCounter = f (progCounter s) }
+
+evalF :: Term -> M Value
+evalF (Ref t) =
+  evalF t >>= \v ->
+  gets store >>= \s ->
+  let addr = length s in
+  gets progCounter >>= \pc ->
+  let fv = createFacetValue pc v Bottom in
+  puts inStore ((addr,fv) : s) >>
+  return (Address addr)
+
+evalF t = eval t
+
+interpF :: Term -> (Value, EvalState)
+interpF t = runState (evalF t) EvalStateF { env = []
+                                          , store = []
+                                          , progCounter = [] }
+
+createFacetValue :: ProgCounter -> Value -> Value -> Value
+createFacetValue [] vH vL = vH
+createFacetValue ((k,True):rest)  vH vL = FacetV k (createFacetValue rest vH vL) vL
+createFacetValue ((k,False):rest) vH vL = FacetV k vL (createFacetValue rest vH vL)
+
+-- Examples
+facetTest1 = (If (Facet 1 (Bol True) (Bol False)) (Con 42) (Con 24))
+
+fentonTest = (Let "x" (Ref (Facet 1 (Bol True) Bot))
+              (Let "y" (Ref (Bol True))
+               (Let "z" (Ref (Bol True))
+                (Seq
+                 (Seq
+                  (If (Deref (Var "x"))
+                   (Assign (Var "y") (Bol False))
+                   Bot)
+                  (If (Deref (Var "y"))
+                   (Assign (Var "z") (Bol False))
+                   Bot))
+                 (Deref (Var "z"))))))
