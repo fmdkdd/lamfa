@@ -96,7 +96,9 @@ applyR f@(ValueR c@(Closure x body env) funLabels) value =
        callerLabels <- get
        let valueLabels = extractLabels value
 
-       tell [Line 0 $ Call (addDefault callerLabels) (addDefault funLabels) (addDefault valueLabels)]
+       tell [Line 0 $ Call (addDefault callerLabels)
+             (addDefault funLabels)
+             (addDefault valueLabels)]
 
        allowCheck 1 callerLabels funLabels
 
@@ -168,8 +170,12 @@ termBot = (App (LamR "x" (Labels [] []) (Con 1)) Bot)
 
 -- Patient/Nurse with caller check
 publishRecord' = (LamR "x" (Labels [("m",Minus)] []) (Var "x"))
-getAnonymRecord' = (LamR "x" (Labels [("m",Plus)] [("m",Minus)]) (App nurseReport' Bot))
-getPatientRecord' = (LamR "x" (Labels [("m",Plus)] [("m",Plus)]) (App nurseReport' Bot))
+getAnonymRecord' = (LamR "x"
+                    (Labels [("m",Plus)] [("m",Minus)])
+                    (App nurseReport' Bot))
+getPatientRecord' = (LamR "x"
+                     (Labels [("m",Plus)] [("m",Plus)])
+                     (App nurseReport' Bot))
 nurseReport' = (LamR "x" (Labels [("m",Plus)] [("m",Plus)]) (Con 1))
 ex1' = (App publishRecord' (App getAnonymRecord' Bot)) -- ok
 ex2' = (App publishRecord' (App getPatientRecord' Bot)) -- fail
