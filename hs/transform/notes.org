@@ -26,6 +26,7 @@ How to add syntax to the parser?
 Have to extend haskell-src with my own syntax extensions.  This means
 modifying the parser for new grammar rules, the lexer for new
 keywords, and other dependencies.
+
 * Instrumenting the interpreter with the extended syntax
 How does the extended syntax simplifies writing the instrumentation?
 
@@ -92,3 +93,120 @@ Overriding from inheritance would work in an OO language.
 An ‘around’ advice would work as well.
 
 What’s the canonical way in Haskell?
+
+** Modules and separate compilation
+Ideally, we would like to be able to have the following modules:
+
+1. FlowR model
+2. Facets model
+3. Standard interp
+4. import standard interp + eval flowR
+5. import standard interp + eval Facets
+
+So, 3 defines defines `eval`, and 4 imports the open functions and
+adds its own extension.  We cannot compile 3 without the extension
+brought by 4, and we cannot compile 4 without having the full
+definition of `eval`.
+
+Here is a basic example with two modules: ‘Base’ and ‘Extension’.
+‘Base’ defines open terms and an open function; ‘Extension’ extends
+both terms and the `eval` function.
+
+#+BEGIN_SRC haskell
+  module Base where
+
+  opendata Term = Con Int
+
+  opendata Value = Constant Int
+
+  eval :: Term -> Value
+  eval (Con i) = Constant i
+#+END_SRC
+
+#+BEGIN_SRC haskell
+  module Extension where
+
+  import Base
+
+  extenddata Term where
+    P Term Term
+
+  extenddata Value where
+    Pair Value Value
+
+  extend eval where
+    eval (P t1 t2) = Pair (eval t1) (eval t2)
+#+END_SRC
+
+If I were to transform ‘Base’ alone, I would just need to remove the
+`open` keywords:
+
+# Transformed version of ‘Base’ alone before compilation
+#+BEGIN_SRC haskell
+  module Base where
+
+  data Term = Con Int
+
+  data Value = Constant Int
+
+  eval :: Term -> Value
+  eval (Con i) = Constant i
+#+END_SRC
+
+Transforming ‘Extension’ is more tricky: `Term`, `Value` and `eval`
+are declared in ‘Base’, and part of their definition is in
+‘Extension’.  However, the full definition must appear in only one
+place to be able to compile.
+
+We cannot move the terms to ‘Base’: the compiled form of ‘Base’ will
+then be different when compiling ‘Base’ only or when compiling
+‘Extension’ (which compiles ‘Base’).
+
+Moving the declarations to ‘Extension’ means forgoing separate
+compilation.  The open declarations in base are moved to ‘Extension’
+before compiling thus we compile them twice: once for ‘Base’, once for
+‘Extension’.
+
+# Transformed version of ‘Extension’ before compilation
+#+BEGIN_SRC haskell
+  module Extension where
+
+  import Base
+
+  data Term where
+    Con Int
+    | P Term Term
+
+  data Value where
+    Constant Int
+    | Pair Value Value
+
+  eval :: Term -> Value
+  eval (Con i) = Constant i
+  eval (P t1 t2) = Pair (eval t1) (eval t2)
+#+END_SRC
+
+We have extra redundancy in compilation.  But is it still correct?
+Were the ‘Extension’ module to export `Term` and `Value`, we would
+only have to compile ‘Extension’ (and the needed terms from Base), not
+the whole content of ‘Base’.
+
+Open Data Types and Open Functions has more to say about that
+specific problem.
+
+In essence, I find no “right” way to solve this problem.  It could be
+handled by a front-end to the transformation program, by hiding the
+different compiled versions and exposing only the relevant ones.
+
+It seems to me that, once again, “The Art of the Interpreter” foresaw
+this issue:
+- You cannot have referential transparency without a dynamically
+  scoped context, e.g. without effects;
+- Haskell is referentially transparent, and statically typed;
+- Ergo, trying to have open terms or functions is fundamentally
+  incompatible with Haskell’s mindset.
+
+Still though, Haskell is not strictly referentially transparent; a
+program is allowed to create side effects.  Thus, there are ways of
+achieving the dynamic extension of types; each an engineering
+compromise.

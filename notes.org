@@ -313,7 +313,7 @@ See [[file:hs/transform/notes.org]]
 
 [[file:hs/transform/tests/2/LC.hs][Lambda calculus with FlowR instrumentation]]
 
-- Cannot override existing definitions
+- Cannot override existing definitions (like one would do with aspects)
 - Extending the monadic stack is best done with scaffolding, though
   obliviousness is lost
 
