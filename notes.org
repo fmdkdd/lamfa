@@ -303,79 +303,7 @@ instrumentation.
 We’ll drop the read/write rules since they only add noise to this
 example.  We’ll also leave out error handling.
 
-#+BEGIN_SRC js
-  function interpretNode(σ, θ, node) {
-    return rules[node.type](σ, θ, node);
-  }
-
-  let ↆ = interpretNode;
-
-  let rules = {
-    constant: function(σ, θ, {c}) {
-      return [ σ, c ];
-    },
-
-    variable: function(σ, θ, {x}) {
-      return [ σ, θ[x] ];
-    },
-
-    abstraction: function(σ, θ, {x, e}) {
-      return [ σ, [x, e, θ] ];
-    },
-
-    application: function(σ, θ, {e1, e2}) {
-      let [σ1, [x, e, θ1]] = ↆ(σ, θ, e1);
-      let [σ2, v1] = ↆ(σ1, θ, e2);
-      let θ2 = Object.create(θ1);
-      θ2[x] = v1;
-      return ↆ(σ, θ2, e);
-    },
-
-    reference: function(σ, θ, {e}) {
-      let [σ1, v] = ↆ(σ, θ, e);
-      let a = Object.keys(σ).length;
-      let σ2 = Object.create(σ1);
-      σ2[a] = v;
-      return [ σ2, a ];
-    },
-
-    dereference: function(σ, θ, {e}) {
-      let [σ1, a] = ↆ(σ, θ, e);
-      return [ σ1, σ1[a] ];
-    },
-
-    assignment: function(σ, θ, {e1, e2}) {
-      let [σ1, a] = ↆ(σ, θ, e1);
-      let [σ2, v] = ↆ(σ1, θ, e2);
-      let σ3 = Object.create(σ2);
-      σ3[a] = v;
-      return [ σ3, v ];
-    },
-  };
-
-  function interpretProgram(AST, env, store) {
-    let env = env || {};
-    let store = store || {};
-    return interpretNode(env, store, AST);
-  }
-
-  // Test
-  interpretProgram({
-    type: 'application',
-    e1: {
-      type: 'abstraction',
-      x: 'x',
-      e: {
-        type: 'variable',
-        x: 'x'
-      }
-    },
-    e2: {
-      type: 'constant',
-      c: 42
-    }
-  });
-#+END_SRC
+#+INCLUDE: js/lab/lamfa-es6-standard.js src js
 
 We cannot show /every/ way to write such an interpreter in JavaScript.
 Here we tried to be syntaxically as close as possible to the original
@@ -396,194 +324,23 @@ JavaScript is to use inheritance.
 In any case, we can easily instrument this base interpreter by
 following the operational semantics from Austin and Flanagan.
 
-#+BEGIN_SRC js
-  function interpretNode(σ, θ, pc, node) {
-    console.log('interpret', node);
-    return rules[node.type](σ, θ, pc, node);
-  }
+#+INCLUDE: js/lab/lamfa-es6-facets.js src js
 
-  let ↆ = interpretNode;
+Looking at the differences between these two versions, we see
+patterns 1 and 2 reappear from our analysis of the Narcissus
+instrumentation.
 
-  let application_rules = {
-    closure: function(σ, pc, {x, e, θ}, v) {
-      let θ1 = Object.create(θ);
-      θ1[x] = v;
-      return ↆ(σ, θ1, pc, e);
-    },
+#+INCLUDE: js/lab/std-facets.diff src diff
 
-    facet: function(σ, pc, {k, vh, vl}, v2) {
-      if (pc.has(k)) {
-        return application_rules(σ, pc, vh, v2);
-      }
+Hence, these patterns appear regardless of the instrumented language
+(lambda calculus and JavaScript), and regardless of the language
+features used by the implementation (pattern matching or dynamic
+dispatch).  Therefore, the problem of finding a way to describe the
+instrumentation as a module and minimizing coupling is not specific to
+Narcissus or JavaScript.
 
-      else if (pc.has(-k)) {
-        return application_rules(σ, pc, vl, v2);
-      }
-
-      else {
-        let pck = new Set(pc);
-        pck.add(k);
-        let [σ1, vh1] = application_rules(σ, pck, vh, v2);
-        let pcmk = new Set(pc);
-        pcmk.add(-k);
-        let [σ2, vl1] = application_rules(σ1, pcmk, vl, v2);
-        return [ σ2, mk_facet(k, vh1, vl1) ];
-      }
-    }
-  };
-
-  let rules = {
-    constant: function(σ, θ, pc, {c}) {
-      return [ σ, c ];
-    },
-
-    variable: function(σ, θ, pc, {x}) {
-      return [ σ, θ[x] ];
-    },
-
-    abstraction: function(σ, θ, pc, {x, e}) {
-      return [ σ, {type: 'closure', x, e, θ} ];
-    },
-
-    application: function(σ, θ, pc, {e1, e2}) {
-      let [σ1, v1] = ↆ(σ, θ, pc, e1);
-      let [σ2, v2] = ↆ(σ1, θ, pc, e2);
-
-      return application_rules[v1.type](σ2, pc, v1, v2);
-    },
-
-    reference: function(σ, θ, pc, {e}) {
-      let [σ1, v] = ↆ(σ, θ, pc, e);
-      let a = Object.keys(σ).length;
-      let σ2 = Object.create(σ1);
-      σ2[a] = mk_facet(pc, v, bottom);
-      return [ σ2, {type: 'address', a} ];
-    },
-
-    dereference: function(σ, θ, pc, {e}) {
-      let [σ1, v] = ↆ(σ, θ, pc, e);
-      return [ σ1, deref(σ1, v, pc) ];
-    },
-
-    assignment: function(σ, θ, pc, {e1, e2}) {
-      let [σ1, v1] = ↆ(σ, θ, pc, e1);
-      let [σ2, v2] = ↆ(σ1, θ, pc, e2);
-      return [ assign(σ2, pc, v1, v2), v2 ];
-    },
-  };
-
-  let bottom = {type: 'bottom'};
-
-  function mk_facet(pc, v1, v2) {
-    console.log('mk_facet', pc, v1, v2);
-
-    if (pc.size === 0)
-      return v1;
-
-    let [k, ...rest] = pc;
-    rest = new Set(rest);
-
-    if (k > 0) {
-      return {
-        type: 'facet',
-        k,
-        vh: mk_facet(rest, v1, v2),
-        vl: v2
-      };
-    }
-
-    else {
-      return {
-        type: 'facet',
-        k,
-        vh: v2,
-        vl: mk_facet(rest, v1, v2)
-      };
-    }
-  }
-
-  let deref_rules = {
-    address: function(σ, {a}, pc) {
-      return σ[a];
-    },
-
-    bottom: function(σ, v, pc) {
-      return bottom;
-    },
-
-    facet: function(σ, {k, vh, vl}, pc) {
-      if (pc.has(k))
-        return deref(σ, vh, pc);
-      else if (pc.has(-k))
-        return deref(σ, vl, pc);
-      else
-        return mk_facet(k, deref(σ, vh, pc), deref(σ, vl, pc));
-    }
-  };
-
-  function deref(σ, v, pc) {
-    console.log('deref', v);
-    return deref_rules[v.type](σ, v, pc);
-  }
-
-  let assign_rules = {
-    address: function(σ, pc, {a}, v) {
-      let σ2 = Object.create(σ);
-      σ2[a] = mk_facet(pc, v, σ[a]);
-      return σ2;
-    },
-
-    bottom: function(σ, pc, v1, v2) {
-      return σ;
-    },
-
-    facet: function(σ, pc, {k, vh, vl}, v) {
-      let pck = new Set(pc);
-      pck.add(k);
-      let σ1 = assign(σ, pck, vh, v);
-      let pcmk = new Set(pc);
-      pcmk.add(-k);
-      return assign(σ1, pcmk, vl, v);
-    }
-  };
-
-  function assign(σ, pc, v1, v2) {
-    console.log('assign', v1);
-    return assign_rules[v1.type](σ, pc, v1, v2);
-  }
-
-  function interpretProgram(AST, env, store, pc) {
-    let env = env || {};
-    let store = store || {};
-    let pc = new Set(pc || []);
-    return interpretNode(env, store, pc, AST);
-  }
-
-  // Test
-  interpretProgram({
-    type: 'application',
-    e1: {
-      type: 'abstraction',
-      x: 'x',
-      e: {
-        type: 'dereference',
-        e: {
-          type: 'variable',
-          x: 'x'
-        }
-      }
-    },
-    e2: {
-      type: 'reference',
-      e: {type: 'constant', c: 42}
-    }
-  },
-  {},{},[1]);
-#+END_SRC
-
-# Same issues appear, so it’s not only Narcissus.  Maybe it’s JS!
-
-# Try Haskell
+We will now exhibit variations in writing the instrumentation as
+a separate module with minimal code duplication.
 
 ** The expression problem
 First, let’s list the additions brought by our extension to the
