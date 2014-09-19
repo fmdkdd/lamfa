@@ -303,7 +303,7 @@ instrumentation.
 We’ll drop the read/write rules since they only add noise to this
 example.  We’ll also leave out error handling.
 
-file:js/lab/lamfa-es6-standard.js
+[[file:js/lab/lamfa-es6-standard.js]]
 #+BEGIN_SRC js
   Set.prototype.union = function(elem) {
     let n = new Set(this);
@@ -436,7 +436,7 @@ between an address, a closure or a bottom value.
 We can easily instrument this base interpreter by following the
 operational semantics from Austin and Flanagan.
 
-file:js/lab/lamfa-es6-facets.js
+[[file:js/lab/lamfa-es6-facets.js]]
 #+BEGIN_SRC js
   Set.prototype.union = function(elem) {
     let n = new Set(this);
@@ -610,7 +610,7 @@ analysis of the Narcissus instrumentation.  The =pc= parameter must be
 passed around in nearly every function, and new cases must be added to
 handle facet values.
 
-file:js/lab/std-facets.diff
+[[file:js/lab/std-facets.diff]]
 #+BEGIN_SRC diff
 7,8c7,8
 < function interpretNode(σ, θ, node) {
@@ -771,7 +771,7 @@ Our ad-hoc pattern matching is perhaps not the most straightforward
 way to write such an interpreter in JavaScript.  Another, maybe more
 familiar way is to use object-oriented dispatching.
 
-file:js/lab/lamfa-oo-standard.js
+[[file:js/lab/lamfa-oo-standard.js]]
 #+BEGIN_SRC js
   let bottom = {
     eval_apply(σ) {
@@ -887,7 +887,7 @@ file:js/lab/lamfa-oo-standard.js
   );
 #+END_SRC
 
-file:js/lab/lamfa-oo-facets.js
+[[file:js/lab/lamfa-oo-facets.js]]
 #+BEGIN_SRC js
   Set.prototype.union = function(elem) {
     let n = new Set(this);
@@ -1061,7 +1061,7 @@ file:js/lab/lamfa-oo-facets.js
 
 But here again, the pattern appear when looking at the diff.
 
-file:js/lab/oo-std-facets.diff
+[[file:js/lab/oo-std-facets.diff]]
 #+BEGIN_SRC diff
 0a1,53
 > Set.prototype.union = function(elem) {
