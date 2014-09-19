@@ -239,34 +239,34 @@ After examining the diff, three patterns are readily apparent:
 
    #+BEGIN_SRC js
      function evaluateEach(v, f, x) {
-             let pc = x.pc;
-             if (!(v instanceof FacetedValue)) {
-                 return f(v, x);
-             }
+       let pc = x.pc;
+       if (!(v instanceof FacetedValue)) {
+         return f(v, x);
+       }
 
-             if (pc.contains(v.label)) {
-                 return evaluateEach(v.authorized, f, x);
-             }
-             else if (pc.contains(v.label.reverse())) {
-                 return evaluateEach(v.unauthorized, f, x);
-             }
-             else {
-                 let va, vu;
-                 try {
-                     x.pc = pc.join(v.label);
-                     va = evaluateEach(v.authorized, f, x);
-                     x.pc = pc.join(v.label.reverse());
-                     vu = evaluateEach(v.unauthorized, f, x);
-                     x.pc = pc;
-                 }
-                 catch (e) {
-                     // Terminate program to avoid leaking data through exceptions
-                     //throw END_SIGNAL;
-                     throw e;
-                 }
-                 return new FacetedValue(v.label, va, vu);
-             }
+       if (pc.contains(v.label)) {
+         return evaluateEach(v.authorized, f, x);
+       }
+       else if (pc.contains(v.label.reverse())) {
+         return evaluateEach(v.unauthorized, f, x);
+       }
+       else {
+         let va, vu;
+         try {
+           x.pc = pc.join(v.label);
+           va = evaluateEach(v.authorized, f, x);
+           x.pc = pc.join(v.label.reverse());
+           vu = evaluateEach(v.unauthorized, f, x);
+           x.pc = pc;
          }
+         catch (e) {
+           // Terminate program to avoid leaking data through exceptions
+           //throw END_SIGNAL;
+           throw e;
+         }
+         return new FacetedValue(v.label, va, vu);
+       }
+     }
    #+END_SRC
 
 From this preliminary examination, we gather that:
@@ -303,34 +303,891 @@ instrumentation.
 We’ll drop the read/write rules since they only add noise to this
 example.  We’ll also leave out error handling.
 
-#+INCLUDE: js/lab/lamfa-es6-standard.js src js
-
-We cannot show /every/ way to write such an interpreter in JavaScript.
-Here we tried to be syntaxically as close as possible to the original
-big-step semantics, using ES6 destructuring and Unicode identifiers.
-Of course, destructuring is just syntactic sugar, so we could unsugar
-our version to basic features of the language only.  The main
-mechanism used here is the ad-hoc pattern matching achieved by
-dispatching on the dynamic type of the AST node or interpreter value
-(by using an explicit ‘type’ property).
-
-Another, maybe more familiar way to write such an interpreter in
-JavaScript is to use inheritance.
-
+file:js/lab/lamfa-es6-standard.js
 #+BEGIN_SRC js
+  Set.prototype.union = function(elem) {
+    let n = new Set(this);
+    n.add(elem);
+    return n;
+  }
+
+  function interpretNode(σ, θ, node) {
+    return rules[node.type](σ, θ, node);
+  }
+
+  let ↆ = interpretNode;
+
+  let bottom = {type: 'bottom'};
+
+  function closure(x, e, θ) { return {type: 'closure', x, e, θ}; }
+  function address(a) { return {type: 'address', a}; }
+
+  function eval_apply(σ, v1, v2) {
+    return application_rules[v1.type](σ, v1, v2);
+  }
+
+  let application_rules = {
+    bottom(σ) {
+      return [σ, bottom];
+    },
+
+    closure(σ, {x, e, θ}, v) {
+      let θ1 = Object.create(θ);
+      θ1[x] = v;
+      return ↆ(σ, θ1, e);
+    },
+  };
+
+  function eval_deref(σ, v) {
+    return deref_rules[v.type](σ, v);
+  }
+
+  let deref_rules = {
+    bottom() {
+      return bottom;
+    },
+
+    address(σ, {a}) {
+      return σ[a];
+    },
+  };
+
+  function eval_assign(σ, v1, v2) {
+    return assign_rules[v1.type](σ, v1, v2);
+  }
+
+  let assign_rules = {
+    bottom(σ) {
+      return σ;
+    },
+
+    address(σ, {a}, v) {
+      let σ2 = Object.create(σ);
+      σ2[a] = v;
+      return σ2;
+    },
+  };
+
+  let rules = {
+    c(σ, θ, {e}) {
+      return [ σ, e ];
+    },
+
+    v(σ, θ, {e}) {
+      return [ σ, θ[e] ];
+    },
+
+    fun(σ, θ, {x, e}) {
+      return [ σ, closure(x, e, θ) ];
+    },
+
+    app(σ, θ, {e1, e2}) {
+      let [σ1, v1] = ↆ(σ, θ, e1);
+      let [σ2, v2] = ↆ(σ1, θ, e2);
+      return eval_apply(σ2, v1, v2);
+    },
+
+    ref(σ, θ, {e}) {
+      let [σ1, v] = ↆ(σ, θ, e);
+      let a = Object.keys(σ1).length;
+      let σ2 = Object.create(σ1);
+      σ2[a] = v;
+      return [ σ2, address(a) ];
+    },
+
+    deref(σ, θ, {e}) {
+      let [σ1, v] = ↆ(σ, θ, e);
+      return [ σ1, eval_deref(σ1, v) ];
+    },
+
+    assign(σ, θ, {e1, e2}) {
+      let [σ1, v1] = ↆ(σ, θ, e1);
+      let [σ2, v2] = ↆ(σ1, θ, e2);
+      return [ eval_assign(σ2, v1, v2), v2 ];
+    },
+  };
+
+  function interpretProgram(AST, env = {}, store = {}) {
+    return interpretNode(env, store, AST);
+  }
+
+  // Test
+  function app(e1, e2) { return {type: 'app', e1, e2}; }
+  function fun(x, e) { return {type: 'fun', x, e}; }
+  function ref(e) { return {type: 'ref', e}; }
+  function deref(e) { return {type: 'deref', e}; }
+  function c(e) { return {type: 'c', e}; }
+  function v(e) { return {type: 'v', e}; }
+
+  interpretProgram(
+    app(fun('x', deref(v('x'))),
+        ref(c(42)))
+  );
+#+END_SRC
+
+We used destructuring from ES6 and Unicode identifiers to approximate
+the appearance of the big-step semantics.  To effect the operational
+rules, we use an ad-hoc pattern matching.  Each AST node is an object
+with a =type= field, and the =interpNode= function dispatches to the
+function in the =rules= object corresponding to the value of this type
+field.  The same pattern matching mechanism is used to distinguish
+between an address, a closure or a bottom value.
+
+We can easily instrument this base interpreter by following the
+operational semantics from Austin and Flanagan.
+
+file:js/lab/lamfa-es6-facets.js
+#+BEGIN_SRC js
+  Set.prototype.union = function(elem) {
+    let n = new Set(this);
+    n.add(elem);
+    return n;
+  }
+
+  function interpretNode(σ, θ, pc, node) {
+    return rules[node.type](σ, θ, pc, node);
+  }
+
+  let ↆ = interpretNode;
+
+  let bottom = {type: 'bottom'};
+
+  function mk_facet(pc, v1, v2) {
+    if (pc.size === 0)
+      return v1;
+
+    let [k, ...rest] = pc;
+    rest = new Set(rest);
+
+    if (k > 0)
+      return facet(k, mk_facet(rest, v1, v2), v2);
+    else
+      return facet(k, v2, mk_facet(rest, v1, v2));
+  }
+
+  function facet(k, vh, vl) { return {type: 'facet', k, vh, vl}; }
+  function closure(x, e, θ) { return {type: 'closure', x, e, θ}; }
+  function address(a) { return {type: 'address', a}; }
+
+  function eval_apply(σ, pc, v1, v2) {
+    return application_rules[v1.type](σ, pc, v1, v2);
+  }
+
+  let application_rules = {
+    bottom(σ) {
+      return [σ, bottom];
+    },
+
+    closure(σ, pc, {x, e, θ}, v) {
+      let θ1 = Object.create(θ);
+      θ1[x] = v;
+      return ↆ(σ, θ1, pc, e);
+    },
+
+    facet(σ, pc, {k, vh, vl}, v2) {
+      if (pc.has(k)) {
+        return eval_apply(σ, pc, vh, v2);
+      }
+
+      else if (pc.has(-k)) {
+        return eval_apply(σ, pc, vl, v2);
+      }
+
+      else {
+        let [σ1, vh1] = eval_apply(σ, pc.union(k), vh, v2);
+        let [σ2, vl1] = eval_apply(σ1, pc.union(-k), vl, v2);
+        return [ σ2, mk_facet(k, vh1, vl1) ];
+      }
+    },
+  };
+
+  function eval_deref(σ, v, pc) {
+    return deref_rules[v.type](σ, v, pc);
+  }
+
+  let deref_rules = {
+    bottom() {
+      return bottom;
+    },
+
+    address(σ, {a}, pc) {
+      return σ[a];
+    },
+
+    facet(σ, {k, vh, vl}, pc) {
+      if (pc.has(k))
+        return eval_deref(σ, vh, pc);
+      else if (pc.has(-k))
+        return eval_deref(σ, vl, pc);
+      else
+        return mk_facet(k, eval_deref(σ, vh, pc), eval_deref(σ, vl, pc));
+    },
+  };
+
+  function eval_assign(σ, pc, v1, v2) {
+    return assign_rules[v1.type](σ, pc, v1, v2);
+  }
+
+  let assign_rules = {
+    bottom(σ) {
+      return σ;
+    },
+
+    address(σ, pc, {a}, v) {
+      let σ2 = Object.create(σ);
+      σ2[a] = mk_facet(pc, v, σ[a]);
+      return σ2;
+    },
+
+    facet(σ, pc, {k, vh, vl}, v) {
+      let σ1 = eval_assign(σ, pc.union(k), vh, v);
+      return eval_assign(σ1, pc.union(-k), vl, v);
+    },
+  };
+
+  let rules = {
+    c(σ, θ, pc, {e}) {
+      return [ σ, e ];
+    },
+
+    v(σ, θ, pc, {e}) {
+      return [ σ, θ[e] ];
+    },
+
+    fun(σ, θ, pc, {x, e}) {
+      return [ σ, closure(x, e, θ) ];
+    },
+
+    app(σ, θ, pc, {e1, e2}) {
+      let [σ1, v1] = ↆ(σ, θ, pc, e1);
+      let [σ2, v2] = ↆ(σ1, θ, pc, e2);
+      return eval_apply(σ2, pc, v1, v2);
+    },
+
+    ref(σ, θ, pc, {e}) {
+      let [σ1, v] = ↆ(σ, θ, pc, e);
+      let a = Object.keys(σ1).length;
+      let σ2 = Object.create(σ1);
+      σ2[a] = mk_facet(pc, v, bottom);
+      return [ σ2, address(a) ];
+    },
+
+    deref(σ, θ, pc, {e}) {
+      let [σ1, v] = ↆ(σ, θ, pc, e);
+      return [ σ1, eval_deref(σ1, v, pc) ];
+    },
+
+    assign(σ, θ, pc, {e1, e2}) {
+      let [σ1, v1] = ↆ(σ, θ, pc, e1);
+      let [σ2, v2] = ↆ(σ1, θ, pc, e2);
+      return [ eval_assign(σ2, pc, v1, v2), v2 ];
+    },
+  };
+
+  function interpretProgram(AST, env = {}, store = {}, pc = []) {
+    let pc = new Set(pc);
+    return interpretNode(env, store, pc, AST);
+  }
+
+  // Test
+  function app(e1, e2) { return {type: 'app', e1, e2}; }
+  function fun(x, e) { return {type: 'fun', x, e}; }
+  function ref(e) { return {type: 'ref', e}; }
+  function deref(e) { return {type: 'deref', e}; }
+  function c(e) { return {type: 'c', e}; }
+  function v(e) { return {type: 'v', e}; }
+
+  interpretProgram(
+    app(fun('x', deref(v('x'))),
+        ref(c(42))),
+    {}, {}, [1]
+  );
+#+END_SRC
+
+The interesting story is told by looking at the differences between
+these two versions.  We see patterns 1 and 2 reappear from our
+analysis of the Narcissus instrumentation.  The =pc= parameter must be
+passed around in nearly every function, and new cases must be added to
+handle facet values.
+
+file:js/lab/std-facets.diff
+#+BEGIN_SRC diff
+7,8c7,8
+< function interpretNode(σ, θ, node) {
+<   return rules[node.type](σ, θ, node);
+---
+> function interpretNode(σ, θ, pc, node) {
+>   return rules[node.type](σ, θ, pc, node);
+14a15,28
+> function mk_facet(pc, v1, v2) {
+>   if (pc.size === 0)
+>     return v1;
+>
+>   let [k, ...rest] = pc;
+>   rest = new Set(rest);
+>
+>   if (k > 0)
+>     return facet(k, mk_facet(rest, v1, v2), v2);
+>   else
+>     return facet(k, v2, mk_facet(rest, v1, v2));
+> }
+>
+> function facet(k, vh, vl) { return {type: 'facet', k, vh, vl}; }
+18,19c32,33
+< function eval_apply(σ, v1, v2) {
+<   return application_rules[v1.type](σ, v1, v2);
+---
+> function eval_apply(σ, pc, v1, v2) {
+>   return application_rules[v1.type](σ, pc, v1, v2);
+27c41
+<   closure(σ, {x, e, θ}, v) {
+---
+>   closure(σ, pc, {x, e, θ}, v) {
+30c44,60
+<     return ↆ(σ, θ1, e);
+---
+>     return ↆ(σ, θ1, pc, e);
+>   },
+>
+>   facet(σ, pc, {k, vh, vl}, v2) {
+>     if (pc.has(k)) {
+>       return eval_apply(σ, pc, vh, v2);
+>     }
+>
+>     else if (pc.has(-k)) {
+>       return eval_apply(σ, pc, vl, v2);
+>     }
+>
+>     else {
+>       let [σ1, vh1] = eval_apply(σ, pc.union(k), vh, v2);
+>       let [σ2, vl1] = eval_apply(σ1, pc.union(-k), vl, v2);
+>       return [ σ2, mk_facet(k, vh1, vl1) ];
+>     }
+34,35c64,65
+< function eval_deref(σ, v) {
+<   return deref_rules[v.type](σ, v);
+---
+> function eval_deref(σ, v, pc) {
+>   return deref_rules[v.type](σ, v, pc);
+43c73
+<   address(σ, {a}) {
+---
+>   address(σ, {a}, pc) {
+45a76,84
+>
+>   facet(σ, {k, vh, vl}, pc) {
+>     if (pc.has(k))
+>       return eval_deref(σ, vh, pc);
+>     else if (pc.has(-k))
+>       return eval_deref(σ, vl, pc);
+>     else
+>       return mk_facet(k, eval_deref(σ, vh, pc), eval_deref(σ, vl, pc));
+>   },
+48,49c87,88
+< function eval_assign(σ, v1, v2) {
+<   return assign_rules[v1.type](σ, v1, v2);
+---
+> function eval_assign(σ, pc, v1, v2) {
+>   return assign_rules[v1.type](σ, pc, v1, v2);
+57c96
+<   address(σ, {a}, v) {
+---
+>   address(σ, pc, {a}, v) {
+59c98
+<     σ2[a] = v;
+---
+>     σ2[a] = mk_facet(pc, v, σ[a]);
+61a101,105
+>
+>   facet(σ, pc, {k, vh, vl}, v) {
+>     let σ1 = eval_assign(σ, pc.union(k), vh, v);
+>     return eval_assign(σ1, pc.union(-k), vl, v);
+>   },
+65c109
+<   c(σ, θ, {e}) {
+---
+>   c(σ, θ, pc, {e}) {
+69c113
+<   v(σ, θ, {e}) {
+---
+>   v(σ, θ, pc, {e}) {
+73c117
+<   fun(σ, θ, {x, e}) {
+---
+>   fun(σ, θ, pc, {x, e}) {
+77,80c121,124
+<   app(σ, θ, {e1, e2}) {
+<     let [σ1, v1] = ↆ(σ, θ, e1);
+<     let [σ2, v2] = ↆ(σ1, θ, e2);
+<     return eval_apply(σ2, v1, v2);
+---
+>   app(σ, θ, pc, {e1, e2}) {
+>     let [σ1, v1] = ↆ(σ, θ, pc, e1);
+>     let [σ2, v2] = ↆ(σ1, θ, pc, e2);
+>     return eval_apply(σ2, pc, v1, v2);
+83,84c127,128
+<   ref(σ, θ, {e}) {
+<     let [σ1, v] = ↆ(σ, θ, e);
+---
+>   ref(σ, θ, pc, {e}) {
+>     let [σ1, v] = ↆ(σ, θ, pc, e);
+87c131
+<     σ2[a] = v;
+---
+>     σ2[a] = mk_facet(pc, v, bottom);
+91,93c135,137
+<   deref(σ, θ, {e}) {
+<     let [σ1, v] = ↆ(σ, θ, e);
+<     return [ σ1, eval_deref(σ1, v) ];
+---
+>   deref(σ, θ, pc, {e}) {
+>     let [σ1, v] = ↆ(σ, θ, pc, e);
+>     return [ σ1, eval_deref(σ1, v, pc) ];
+96,99c140,143
+<   assign(σ, θ, {e1, e2}) {
+<     let [σ1, v1] = ↆ(σ, θ, e1);
+<     let [σ2, v2] = ↆ(σ1, θ, e2);
+<     return [ eval_assign(σ2, v1, v2), v2 ];
+---
+>   assign(σ, θ, pc, {e1, e2}) {
+>     let [σ1, v1] = ↆ(σ, θ, pc, e1);
+>     let [σ2, v2] = ↆ(σ1, θ, pc, e2);
+>     return [ eval_assign(σ2, pc, v1, v2), v2 ];
+103,104c147,149
+< function interpretProgram(AST, env = {}, store = {}) {
+<   return interpretNode(env, store, AST);
+---
+> function interpretProgram(AST, env = {}, store = {}, pc = []) {
+>   let pc = new Set(pc);
+>   return interpretNode(env, store, pc, AST);
+117c162,163
+<       ref(c(42)))
+---
+>       ref(c(42))),
+>   {}, {}, [1]
+#+END_SRC
+
+Our ad-hoc pattern matching is perhaps not the most straightforward
+way to write such an interpreter in JavaScript.  Another, maybe more
+familiar way is to use object-oriented dispatching.
+
+file:js/lab/lamfa-oo-standard.js
+#+BEGIN_SRC js
+  let bottom = {
+    eval_apply(σ) {
+      return [ σ, bottom ];
+    },
+
+    eval_deref() {
+      return bottom;
+    },
+
+    eval_assign(σ) {
+      return σ;
+    }
+  };
+
+  function address(a) {
+    return {
+      eval_deref(σ) {
+        return σ[a];
+      },
+
+      eval_assign(σ, v) {
+        let σ2 = Object.create(σ);
+        σ2[a] = v;
+        return σ2;
+      }
+    };
+  }
+
+  function closure(x, e, θ) {
+    return {
+      eval_apply(σ, v) {
+        let θ1 = Object.create(θ);
+        θ1[x] = v;
+        return e.eval(σ, θ1);
+      }
+    };
+  }
+
+  function c(e) {
+    return {
+      eval(σ, θ) {
+        return [ σ, e ];
+      }
+    };
+  }
+
+  function v(e) {
+    return {
+      eval(σ, θ) {
+        return [ σ, θ[e] ];
+      }
+    };
+  }
+
+  function fun(x, e) {
+    return {
+      eval(σ, θ) {
+        return [ σ, closure(x, e, θ) ];
+      }
+    };
+  }
+
+  function app(e1, e2) {
+    return {
+      eval(σ, θ) {
+        let [σ1, v1] = e1.eval(σ, θ);
+        let [σ2, v2] = e2.eval(σ1, θ);
+        return v1.eval_apply(σ2, v2);
+      }
+    };
+  }
+
+  function ref(e) {
+    return {
+      eval(σ, θ) {
+        let [σ1, v] = e.eval(σ, θ);
+        let a = Object.keys(σ1).length;
+        let σ2 = Object.create(σ1);
+        σ2[a] = v;
+        return [ σ2, address(a) ];
+      }
+    };
+  }
+
+  function deref(e) {
+    return {
+      eval(σ, θ) {
+        let [σ1, v] = e.eval(σ, θ);
+        return [ σ1, v.eval_deref(σ1, v) ];
+      }
+    };
+  }
+
+  function assign(e1, e2) {
+    return {
+      eval(σ, θ) {
+        let [σ1, v1] = e1.eval(σ, θ);
+        let [σ2, v2] = e2.eval(σ1, θ);
+        return [ v1.eval_assign(σ2, v1, v2), v2 ];
+      }
+    };
+  }
+
+  function interpretProgram(AST, env = {}, store = {}) {
+    return AST.eval(env, store);
+  }
+
+  // Test
+  interpretProgram(
+    app(fun('x', deref(v('x'))),
+        ref(c(42)))
+  );
+#+END_SRC
+
+file:js/lab/lamfa-oo-facets.js
+#+BEGIN_SRC js
+  Set.prototype.union = function(elem) {
+    let n = new Set(this);
+    n.add(elem);
+    return n;
+  }
+
+  function mk_facet(pc, v1, v2) {
+    if (pc.size === 0)
+      return v1;
+
+    let [k, ...rest] = pc;
+    rest = new Set(rest);
+
+    if (k > 0)
+      return facet(k, mk_facet(rest, v1, v2), v2);
+    else
+      return facet(k, v2, mk_facet(rest, v1, v2));
+  }
+
+  function facet(k, vh, vl) {
+    return {
+      eval_apply(σ, pc, v2) {
+        if (pc.has(k)) {
+          return vh.eval_apply(σ, pc, v2);
+        }
+
+        else if (pc.has(-k)) {
+          return vl.eval_apply(σ, pc, v2);
+        }
+
+        else {
+          let [σ1, vh1] = vh.eval_apply(σ, pc.union(k), v2);
+          let [σ2, vl1] = vl.eval_apply(σ1, pc.union(-k), v2);
+          return [ σ2, mk_facet(k, vh1, vl1) ];
+        }
+      },
+
+      eval_deref(σ, pc) {
+        if (pc.has(k))
+          return vh.eval_deref(σ, pc);
+        else if (pc.has(-k))
+          return vl.eval_deref(σ, pc);
+        else
+          return mk_facet(k, vh.eval_deref(σ, pc), vl.eval_deref(σ, pc));
+      },
+
+      eval_assign(σ, pc, v) {
+        let σ1 = vh.eval_assign(σ, pc.union(k), v);
+        return vl.eval_assign(σ1, pc.union(-k), v);
+      }
+    };
+  }
+
+  let bottom = {
+    eval_apply(σ) {
+      return [ σ, bottom ];
+    },
+
+    eval_deref() {
+      return bottom;
+    },
+
+    eval_assign(σ) {
+      return σ;
+    }
+  };
+
+  function address(a) {
+    return {
+      eval_deref(σ) {
+        return σ[a];
+      },
+
+      eval_assign(σ, v) {
+        let σ2 = Object.create(σ);
+        σ2[a] = v;
+        return σ2;
+      }
+    };
+  }
+
+  function closure(x, e, θ) {
+    return {
+      eval_apply(σ, pc, v) {
+        let θ1 = Object.create(θ);
+        θ1[x] = v;
+        return e.eval(σ, θ1, pc);
+      }
+    };
+  }
+
+  function c(e) {
+    return {
+      eval(σ, θ, pc) {
+        return [ σ, e ];
+      }
+    };
+  }
+
+  function v(e) {
+    return {
+      eval(σ, θ, pc) {
+        return [ σ, θ[e] ];
+      }
+    };
+  }
+
+  function fun(x, e) {
+    return {
+      eval(σ, θ, pc) {
+        return [ σ, closure(x, e, θ) ];
+      }
+    };
+  }
+
+  function app(e1, e2) {
+    return {
+      eval(σ, θ, pc) {
+        let [σ1, v1] = e1.eval(σ, θ, pc);
+        let [σ2, v2] = e2.eval(σ1, θ, pc);
+        return v1.eval_apply(σ2, pc, v2);
+      }
+    };
+  }
+
+  function ref(e) {
+    return {
+      eval(σ, θ, pc) {
+        let [σ1, v] = e.eval(σ, θ, pc);
+        let a = Object.keys(σ1).length;
+        let σ2 = Object.create(σ1);
+        σ2[a] = mk_facet(pc, v, bottom);
+        return [ σ2, address(a) ];
+      }
+    };
+  }
+
+  function deref(e) {
+    return {
+      eval(σ, θ, pc) {
+        let [σ1, v] = e.eval(σ, θ, pc);
+        return [ σ1, v.eval_deref(σ1, pc, v) ];
+      }
+    };
+  }
+
+  function assign(e1, e2) {
+    return {
+      eval(σ, θ, pc) {
+        let [σ1, v1] = e1.eval(σ, θ, pc);
+        let [σ2, v2] = e2.eval(σ1, θ, pc);
+        return [ v1.eval_assign(σ2, pc, v1, v2), v2 ];
+      }
+    };
+  }
+
+  function interpretProgram(AST, env = {}, store = {}, pc = []) {
+    let pc = new Set(pc);
+    return AST.eval(env, store, pc);
+  }
+
+  // Test
+  interpretProgram(
+    app(fun('x', deref(v('x'))),
+        ref(c(42))),
+    {}, {}, [1]
+  );
 
 #+END_SRC
 
-In any case, we can easily instrument this base interpreter by
-following the operational semantics from Austin and Flanagan.
+But here again, the pattern appear when looking at the diff.
 
-#+INCLUDE: js/lab/lamfa-es6-facets.js src js
-
-Looking at the differences between these two versions, we see
-patterns 1 and 2 reappear from our analysis of the Narcissus
-instrumentation.
-
-#+INCLUDE: js/lab/std-facets.diff src diff
+file:js/lab/oo-std-facets.diff
+#+BEGIN_SRC diff
+0a1,53
+> Set.prototype.union = function(elem) {
+>   let n = new Set(this);
+>   n.add(elem);
+>   return n;
+> }
+>
+> function mk_facet(pc, v1, v2) {
+>   if (pc.size === 0)
+>     return v1;
+>
+>   let [k, ...rest] = pc;
+>   rest = new Set(rest);
+>
+>   if (k > 0)
+>     return facet(k, mk_facet(rest, v1, v2), v2);
+>   else
+>     return facet(k, v2, mk_facet(rest, v1, v2));
+> }
+>
+> function facet(k, vh, vl) {
+>   return {
+>     eval_apply(σ, pc, v2) {
+>       if (pc.has(k)) {
+>         return vh.eval_apply(σ, pc, v2);
+>       }
+>
+>       else if (pc.has(-k)) {
+>         return vl.eval_apply(σ, pc, v2);
+>       }
+>
+>       else {
+>         let [σ1, vh1] = vh.eval_apply(σ, pc.union(k), v2);
+>         let [σ2, vl1] = vl.eval_apply(σ1, pc.union(-k), v2);
+>         return [ σ2, mk_facet(k, vh1, vl1) ];
+>       }
+>     },
+>
+>     eval_deref(σ, pc) {
+>       if (pc.has(k))
+>         return vh.eval_deref(σ, pc);
+>       else if (pc.has(-k))
+>         return vl.eval_deref(σ, pc);
+>       else
+>         return mk_facet(k, vh.eval_deref(σ, pc), vl.eval_deref(σ, pc));
+>     },
+>
+>     eval_assign(σ, pc, v) {
+>       let σ1 = vh.eval_assign(σ, pc.union(k), v);
+>       return vl.eval_assign(σ1, pc.union(-k), v);
+>     }
+>   };
+> }
+>
+31c84
+<     eval_apply(σ, v) {
+---
+>     eval_apply(σ, pc, v) {
+34c87
+<       return e.eval(σ, θ1);
+---
+>       return e.eval(σ, θ1, pc);
+41c94
+<     eval(σ, θ) {
+---
+>     eval(σ, θ, pc) {
+49c102
+<     eval(σ, θ) {
+---
+>     eval(σ, θ, pc) {
+57c110
+<     eval(σ, θ) {
+---
+>     eval(σ, θ, pc) {
+65,68c118,121
+<     eval(σ, θ) {
+<       let [σ1, v1] = e1.eval(σ, θ);
+<       let [σ2, v2] = e2.eval(σ1, θ);
+<       return v1.eval_apply(σ2, v2);
+---
+>     eval(σ, θ, pc) {
+>       let [σ1, v1] = e1.eval(σ, θ, pc);
+>       let [σ2, v2] = e2.eval(σ1, θ, pc);
+>       return v1.eval_apply(σ2, pc, v2);
+75,76c128,129
+<     eval(σ, θ) {
+<       let [σ1, v] = e.eval(σ, θ);
+---
+>     eval(σ, θ, pc) {
+>       let [σ1, v] = e.eval(σ, θ, pc);
+79c132
+<       σ2[a] = v;
+---
+>       σ2[a] = mk_facet(pc, v, bottom);
+87,89c140,142
+<     eval(σ, θ) {
+<       let [σ1, v] = e.eval(σ, θ);
+<       return [ σ1, v.eval_deref(σ1, v) ];
+---
+>     eval(σ, θ, pc) {
+>       let [σ1, v] = e.eval(σ, θ, pc);
+>       return [ σ1, v.eval_deref(σ1, pc, v) ];
+96,99c149,152
+<     eval(σ, θ) {
+<       let [σ1, v1] = e1.eval(σ, θ);
+<       let [σ2, v2] = e2.eval(σ1, θ);
+<       return [ v1.eval_assign(σ2, v1, v2), v2 ];
+---
+>     eval(σ, θ, pc) {
+>       let [σ1, v1] = e1.eval(σ, θ, pc);
+>       let [σ2, v2] = e2.eval(σ1, θ, pc);
+>       return [ v1.eval_assign(σ2, pc, v1, v2), v2 ];
+104,105c157,159
+< function interpretProgram(AST, env = {}, store = {}) {
+<   return AST.eval(env, store);
+---
+> function interpretProgram(AST, env = {}, store = {}, pc = []) {
+>   let pc = new Set(pc);
+>   return AST.eval(env, store, pc);
+111c165,166
+<       ref(c(42)))
+---
+>       ref(c(42))),
+>   {}, {}, [1]
+#+END_SRC
 
 Hence, these patterns appear regardless of the instrumented language
 (lambda calculus and JavaScript), and regardless of the language
@@ -472,9 +1329,11 @@ leave the original behavior unaltered.  How to recognize or enforce
 question. [“Recognize” I don’t know how.  “Enforce” you can do with
 monads, if you have a monadic interpreter.]
 
-* Exploration
+* Variations
 ** JavaScript
 See [[file:js/aoping.org]].
+
+The first
 
 ** Haskell
 Building scaffolding with languages features has the following

@@ -1,10 +1,10 @@
-1,2c1,2
+7,8c7,8
 < function interpretNode(σ, θ, node) {
 <   return rules[node.type](σ, θ, node);
 ---
 > function interpretNode(σ, θ, pc, node) {
 >   return rules[node.type](σ, θ, pc, node);
-8a9,34
+14a15,28
 > function mk_facet(pc, v1, v2) {
 >   if (pc.size === 0)
 >     return v1;
@@ -12,148 +12,142 @@
 >   let [k, ...rest] = pc;
 >   rest = new Set(rest);
 > 
->   if (k > 0) {
->     return {
->       type: 'facet',
->       k,
->       vh: mk_facet(rest, v1, v2),
->       vl: v2
->     };
->   }
-> 
->   else {
->     return {
->       type: 'facet',
->       k,
->       vh: v2,
->       vl: mk_facet(rest, v1, v2)
->     };
->   }
+>   if (k > 0)
+>     return facet(k, mk_facet(rest, v1, v2), v2);
+>   else
+>     return facet(k, v2, mk_facet(rest, v1, v2));
 > }
 > 
-14c40
-<   closure: function(σ, {x, e, θ}, v) {
+> function facet(k, vh, vl) { return {type: 'facet', k, vh, vl}; }
+18,19c32,33
+< function eval_apply(σ, v1, v2) {
+<   return application_rules[v1.type](σ, v1, v2);
 ---
->   closure: function(σ, pc, {x, e, θ}, v) {
-17c43
+> function eval_apply(σ, pc, v1, v2) {
+>   return application_rules[v1.type](σ, pc, v1, v2);
+27c41
+<   closure(σ, {x, e, θ}, v) {
+---
+>   closure(σ, pc, {x, e, θ}, v) {
+30c44,60
 <     return ↆ(σ, θ1, e);
 ---
 >     return ↆ(σ, θ1, pc, e);
-18a45,64
+>   },
 > 
->   facet: function(σ, pc, {k, vh, vl}, v2) {
+>   facet(σ, pc, {k, vh, vl}, v2) {
 >     if (pc.has(k)) {
->       return application_rules(σ, pc, vh, v2);
+>       return eval_apply(σ, pc, vh, v2);
 >     }
 > 
 >     else if (pc.has(-k)) {
->       return application_rules(σ, pc, vl, v2);
+>       return eval_apply(σ, pc, vl, v2);
 >     }
 > 
 >     else {
->       let pck = new Set(pc);
->       pck.add(k);
->       let [σ1, vh1] = application_rules(σ, pck, vh, v2);
->       let pcmk = new Set(pc);
->       pcmk.add(-k);
->       let [σ2, vl1] = application_rules(σ1, pcmk, vl, v2);
+>       let [σ1, vh1] = eval_apply(σ, pc.union(k), vh, v2);
+>       let [σ2, vl1] = eval_apply(σ1, pc.union(-k), vl, v2);
 >       return [ σ2, mk_facet(k, vh1, vl1) ];
 >     }
->   }
-20a67
-> 
-26c73
-<   address: function(σ, {a}) {
+34,35c64,65
+< function eval_deref(σ, v) {
+<   return deref_rules[v.type](σ, v);
 ---
->   address: function(σ, {a}, pc) {
-27a75,83
->   },
+> function eval_deref(σ, v, pc) {
+>   return deref_rules[v.type](σ, v, pc);
+43c73
+<   address(σ, {a}) {
+---
+>   address(σ, {a}, pc) {
+45a76,84
 > 
->   facet: function(σ, {k, vh, vl}, pc) {
+>   facet(σ, {k, vh, vl}, pc) {
 >     if (pc.has(k))
->       return deref(σ, vh, pc);
+>       return eval_deref(σ, vh, pc);
 >     else if (pc.has(-k))
->       return deref(σ, vl, pc);
+>       return eval_deref(σ, vl, pc);
 >     else
->       return mk_facet(k, deref(σ, vh, pc), deref(σ, vl, pc));
-36c92
-<   address: function(σ, {a}, v) {
+>       return mk_facet(k, eval_deref(σ, vh, pc), eval_deref(σ, vl, pc));
+>   },
+48,49c87,88
+< function eval_assign(σ, v1, v2) {
+<   return assign_rules[v1.type](σ, v1, v2);
 ---
->   address: function(σ, pc, {a}, v) {
-38c94
+> function eval_assign(σ, pc, v1, v2) {
+>   return assign_rules[v1.type](σ, pc, v1, v2);
+57c96
+<   address(σ, {a}, v) {
+---
+>   address(σ, pc, {a}, v) {
+59c98
 <     σ2[a] = v;
 ---
 >     σ2[a] = mk_facet(pc, v, σ[a]);
-40a97,105
+61a101,105
 > 
->   facet: function(σ, pc, {k, vh, vl}, v) {
->     let pck = new Set(pc);
->     pck.add(k);
->     let σ1 = assign(σ, pck, vh, v);
->     let pcmk = new Set(pc);
->     pcmk.add(-k);
->     return assign(σ1, pcmk, vl, v);
->   }
-44c109
-<   c: function(σ, θ, {c}) {
+>   facet(σ, pc, {k, vh, vl}, v) {
+>     let σ1 = eval_assign(σ, pc.union(k), vh, v);
+>     return eval_assign(σ1, pc.union(-k), vl, v);
+>   },
+65c109
+<   c(σ, θ, {e}) {
 ---
->   c: function(σ, θ, pc, {c}) {
-48c113
-<   v: function(σ, θ, {x}) {
+>   c(σ, θ, pc, {e}) {
+69c113
+<   v(σ, θ, {e}) {
 ---
->   v: function(σ, θ, pc, {x}) {
-52c117
-<   fun: function(σ, θ, {x, e}) {
+>   v(σ, θ, pc, {e}) {
+73c117
+<   fun(σ, θ, {x, e}) {
 ---
->   fun: function(σ, θ, pc, {x, e}) {
-56,59c121,124
-<   app: function(σ, θ, {e1, e2}) {
+>   fun(σ, θ, pc, {x, e}) {
+77,80c121,124
+<   app(σ, θ, {e1, e2}) {
 <     let [σ1, v1] = ↆ(σ, θ, e1);
 <     let [σ2, v2] = ↆ(σ1, θ, e2);
-<     return application_rules[v1.type](σ2, v1, v2);
+<     return eval_apply(σ2, v1, v2);
 ---
->   app: function(σ, θ, pc, {e1, e2}) {
+>   app(σ, θ, pc, {e1, e2}) {
 >     let [σ1, v1] = ↆ(σ, θ, pc, e1);
 >     let [σ2, v2] = ↆ(σ1, θ, pc, e2);
->     return application_rules[v1.type](σ2, pc, v1, v2);
-62,63c127,128
-<   ref: function(σ, θ, {e}) {
+>     return eval_apply(σ2, pc, v1, v2);
+83,84c127,128
+<   ref(σ, θ, {e}) {
 <     let [σ1, v] = ↆ(σ, θ, e);
 ---
->   ref: function(σ, θ, pc, {e}) {
+>   ref(σ, θ, pc, {e}) {
 >     let [σ1, v] = ↆ(σ, θ, pc, e);
-66c131
+87c131
 <     σ2[a] = v;
 ---
 >     σ2[a] = mk_facet(pc, v, bottom);
-70,72c135,137
-<   deref: function(σ, θ, {e}) {
+91,93c135,137
+<   deref(σ, θ, {e}) {
 <     let [σ1, v] = ↆ(σ, θ, e);
-<     return [ σ1, deref_rules[v.type](σ1, v) ];
+<     return [ σ1, eval_deref(σ1, v) ];
 ---
->   deref: function(σ, θ, pc, {e}) {
+>   deref(σ, θ, pc, {e}) {
 >     let [σ1, v] = ↆ(σ, θ, pc, e);
->     return [ σ1, deref_rules[v.type](σ1, v, pc) ];
-75,78c140,143
-<   assign: function(σ, θ, {e1, e2}) {
+>     return [ σ1, eval_deref(σ1, v, pc) ];
+96,99c140,143
+<   assign(σ, θ, {e1, e2}) {
 <     let [σ1, v1] = ↆ(σ, θ, e1);
 <     let [σ2, v2] = ↆ(σ1, θ, e2);
-<     return [ assign_rules[v1.type](σ2, v1, v2), v2 ];
+<     return [ eval_assign(σ2, v1, v2), v2 ];
 ---
->   assign: function(σ, θ, pc, {e1, e2}) {
+>   assign(σ, θ, pc, {e1, e2}) {
 >     let [σ1, v1] = ↆ(σ, θ, pc, e1);
 >     let [σ2, v2] = ↆ(σ1, θ, pc, e2);
->     return [ assign_rules[v1.type](σ2, pc, v1, v2), v2 ];
-82c147
-< function interpretProgram(AST, env, store) {
----
-> function interpretProgram(AST, env, store, pc) {
-85c150,151
+>     return [ eval_assign(σ2, pc, v1, v2), v2 ];
+103,104c147,149
+< function interpretProgram(AST, env = {}, store = {}) {
 <   return interpretNode(env, store, AST);
 ---
->   let pc = new Set(pc || []);
+> function interpretProgram(AST, env = {}, store = {}, pc = []) {
+>   let pc = new Set(pc);
 >   return interpretNode(env, store, pc, AST);
-93c159
-< });
+117c162,163
+<       ref(c(42)))
 ---
-> }, {},{},[1]);
+>       ref(c(42))),
+>   {}, {}, [1]
