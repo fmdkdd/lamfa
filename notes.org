@@ -1199,6 +1199,8 @@ Narcissus or JavaScript.
 We will now exhibit variations in writing the instrumentation as
 a separate module with minimal code duplication.
 
+** Extending
+
 ** The expression problem
 First, let’s list the additions brought by our extension to the
 interpreter:
@@ -1333,7 +1335,111 @@ monads, if you have a monadic interpreter.]
 ** JavaScript
 See [[file:js/aoping.org]].
 
-The first
+*** Split OO-style instrumented interpreter into modules
+Let’s try to separate the object-oriented instrumented interpreter in
+two modules: one for the base interpreter, ‘base.js’, one for the
+instrumentation, ‘facets.js’.  The ‘base.js’ file should not contain
+any instrumentation-specific code, and be as close as possible to the
+standard interpreter.
+
+Looking at the diff, we can put =mk_facet=, =facet= and the
+extension to =Set.prototype= in a separate file right away.
+
+The second, more pervasive change is the addition of the program
+counter context in every call.  There are several solutions to this
+problem:
+
+1. We can use a global variable for the ‘pc’.  This eliminates the
+   need to pass the ‘pc’ as a formal parameter to most functions, and
+   to pass it down to tail calls.  However, we then need to save the
+   previous value of this global pc when temporarily changing the
+   current pc to evaluate branches in =facet.eval_assign= and
+   =facet.eval_apply=.
+
+   With the ‘pc’ argument:
+   #+BEGIN_SRC js
+     let [σ1, vh1] = vh.eval_apply(σ, pc.union(k), v2);
+     let [σ2, vl1] = vl.eval_apply(σ1, pc.union(-k), v2);
+   #+END_SRC
+
+   With a global variable ‘pc’:
+   #+BEGIN_SRC js
+     let pc_old = pc;
+     pc = pc.union(k);
+     let [σ1, vh1] = vh.eval_apply(σ, v2);
+     pc = pc.union(-k);
+     let [σ2, vl1] = vl.eval_apply(σ1, v2);
+     pc = pc_old;
+   #+END_SRC
+
+   This temporary rewriting of a variable is essentially simulating a
+   dynamic binding of the ‘pc’ variable.  There are no built-ins
+   constructs or syntactic sugar for dynamic binding in JavaScript,
+   but we can add one for this particular variable.
+
+   #+BEGIN_SRC js
+     function with_pc(new_pc, thunk) {
+       let old_pc = pc;
+       pc = new_pc;
+       let ret = thunk();
+       pc = old_pc;
+       return ret;
+     }
+   #+END_SRC
+
+   Now the =facet.eval_apply= function is cleaner:
+
+   #+BEGIN_SRC js
+     let [σ1, vh1] = with_pc(pc.union(k), () => vh.eval_apply(σ, v2));
+     let [σ2, vl1] = with_pc(pc.union(-k), () => vl.eval_apply(σ1, v2));
+     return [ σ2, mk_facet(k, vh1, vl1) ];
+   #+END_SRC
+
+   [[file:js/lab/oo-split-global/base.js]]
+   #+BEGIN_SRC js
+
+   #+END_SRC
+
+2. Using a global variable for just the ‘pc’ and not the store or
+   environment seems heterogeneous.  We can adopt the position that
+   the ‘pc’ is an extension to the state of the interpreter, and
+   bundle all this state in a ‘context’ objet passed around in
+   function calls.  Then we profit from the dynamic nature of
+   JavaScript objects: we can add any property at runtime.  Rather
+   than hiding the ‘pc’ away, it makes the state passing explicit, and
+   removes the need for =with_pc=.
+
+   This solution has the benefit of homogenizing the order of formal
+   parameters: the context object will always be the first one, and
+   the =eval= functions will always return a context object rather
+   than just the store.
+
+   Here is what the third branch of =facet.eval_apply= looks like:
+
+   #+BEGIN_SRC js
+     let [C1, vh1] = vh.eval_apply(with_pc(C, C.pc.union(k)), v2);
+     let [C2, vl1] = vl.eval_apply(with_pc(C1, C.pc.union(-k)), v2);
+     return [ C2, mk_facet(k, vh1, vl1) ];
+   #+END_SRC
+
+   The evaluation of functions now explicitly deal with contexts:
+
+   #+BEGIN_SRC js
+     function app(e1, e2) {
+       return {
+         eval(C) {
+           let [C1, v1] = e1.eval(C);
+           let [C2, v2] = e2.eval(C1);
+           return v1.eval_apply(C2, v2);
+         }
+       };
+     }
+   #+END_SRC
+
+   The signatures are simpler, though we lose a bit in legibility, as
+   =C= is opaque: we do not see what the context made is of by looking
+   at the formal parameters.  Only looking at the entry point
+   (=interpretProgram=) reveals its contents.
 
 ** Haskell
 Building scaffolding with languages features has the following
