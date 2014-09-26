@@ -610,8 +610,12 @@ analysis of the Narcissus instrumentation.  The =pc= parameter must be
 passed around in nearly every function, and new cases must be added to
 handle facet values.
 
-[[file:js/lab/std-facets.diff]]
-#+BEGIN_SRC diff
+#+BEGIN_SRC sh :results pp
+  diff js/lab/lamfa-es6-standard.js js/lab/lamfa-es6-facets.js; exit 0
+#+END_SRC
+
+#+RESULTS:
+#+begin_src diff
 7,8c7,8
 < function interpretNode(σ, θ, node) {
 <   return rules[node.type](σ, θ, node);
@@ -765,7 +769,7 @@ handle facet values.
 ---
 >       ref(c(42))),
 >   {}, {}, [1]
-#+END_SRC
+#+end_src
 
 Our ad-hoc pattern matching is perhaps not the most straightforward
 way to write such an interpreter in JavaScript.  Another, maybe more
@@ -1061,8 +1065,12 @@ familiar way is to use object-oriented dispatching.
 
 But here again, the pattern appear when looking at the diff.
 
-[[file:js/lab/oo-std-facets.diff]]
-#+BEGIN_SRC diff
+#+BEGIN_SRC sh :results pp
+  diff js/lab/lamfa-oo-standard.js js/lab/lamfa-oo-facets.js; exit 0
+#+END_SRC
+
+#+RESULTS:
+#+begin_src diff
 0a1,53
 > Set.prototype.union = function(elem) {
 >   let n = new Set(this);
@@ -1187,7 +1195,7 @@ But here again, the pattern appear when looking at the diff.
 ---
 >       ref(c(42))),
 >   {}, {}, [1]
-#+END_SRC
+#+end_src
 
 Hence, these patterns appear regardless of the instrumented language
 (lambda calculus and JavaScript), and regardless of the language
