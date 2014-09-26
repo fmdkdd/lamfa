@@ -1380,10 +1380,10 @@ With a global variable ‘pc’:
   pc = pc_old;
 #+END_SRC
 
-This temporary rewriting of a variable is essentially simulating a
+This temporary rewriting of a variable is essentially emulating a
 dynamic binding of the ‘pc’ variable.  There are no built-ins
-constructs or syntactic sugar for dynamic binding in JavaScript,
-but we can add one for this particular variable.
+constructs or syntactic sugar for dynamic binding in JavaScript, but
+we can add one for this particular variable.
 
 #+BEGIN_SRC js
   function with_pc(new_pc, thunk) {
@@ -1406,6 +1406,8 @@ Now the =facet.eval_apply= function is cleaner:
 The ‘pc’ parameter is thus part of the closure of all facet-related
 functions.  The =with_pc= construct require mutability in order to
 change the current program counter referenced in the closure.
+Mutability can be waived as a requirement if the language supports
+dynamic scoping [Art of Interp].
 
 ***** Using a context object
 Using a global variable for just the ‘pc’ and not the store or
@@ -1569,13 +1571,98 @@ We split the object-oriented interpreter into two modules:
 
 We used two different mechanisms to handle the extra ‘pc’ parameter:
 1. A ‘pc’ variable in the closure of all facet-related functions.
-   Mutability of this variable is required for this solution to work.
+   This solution works if the language provides mutable variables or
+   dynamic scoping.
 2. Modifying the base interpreter to use a context object for the
    store and environment.  We then leveraged the ability to add
    properties to existing objects and included the program counter in
    this context.  Mutability is not required, but dynamic typing
    allows us to use a context object with two incompatibles types.
 
+*** Split pattern-matching instrumented interpreter into modules
+We can handle the extra ‘pc’ parameter in the same ways we did with
+the object-oriented interpreter.
+
+However, when we try to extend the =ref= rule, two things are
+different.
+
+1. The =eval_apply=, =eval_deref= and =eval_assign= code for facet
+   values is split across the three =application_rules=, =deref_rules=
+   and =assign_rules= objects.  In the object-oriented approach, they
+   were regrouped under the same =facet= object.
+
+   #+BEGIN_SRC js
+     function facet(k, vh, vl) {
+       return {
+         eval_apply(σ, v2) {...},
+         eval_deref(σ) {...},
+         eval_assign(σ, v) {...}
+       };
+     }
+   #+END_SRC
+
+   #+BEGIN_SRC js
+     base.application_rules.facet = (σ, {k, vh, vl}, v2) => {...};
+     base.deref_rules.facet = (σ, {k, vh, vl}) => {...};
+     base.assign_rules.facet = (σ, {k, vh, vl}, v) => {...};
+   #+END_SRC
+
+   This is a manifestation of the expression problem, or the “tyranny
+   of the primary”: in the object-oriented approach, adding a term is
+   just adding an object with all its evaluation functions; while
+   adding evaluation functions requires modifying all the objects.
+   Note that since in JavaScript objects can be extended at runtime,
+   the primary decomposition has a lower impact.
+
+2. In the object-oriented approach, we redefined the =ref= function in
+   the facets module and delegated the other rules to the base
+   interpreter.  Here we cannot do so.
+
+   The =rules= object is in the closure of =base.interpretNode=.
+   Extending the =rules= object with a new =ref= function would not
+   change the behavior of =base.interpretNode=.
+
+   #+BEGIN_SRC js
+     let rules = {
+       __proto__: base.rules,
+       ref(σ, θ, {e}) {
+         let [σ1, v] = ↆ(σ, θ, e);
+         let a = Object.keys(σ1).length;
+         let σ2 = Object.create(σ1);
+         σ2[a] = mk_facet(pc, v, bottom);
+         return [ σ2, address(a) ];
+       }
+     };
+   #+END_SRC
+
+   Trying to redefine a new =interpretNode= function in the facets
+   module to close over this new =rules= object is not a solution.
+   Rules from the base interpreter will still call the
+   =base.interpretNode= function which refer to the =base.rules=
+   object.
+
+   What does work is to ‘fluid-let’ the =rules= object inside
+   =facets.interpretProgram=.
+
+   #+BEGIN_SRC js
+     function interpretProgram(AST, env = {}, store = {}, default_pc = []) {
+       let old_ref = base._innards.rules.ref;
+       base._innards.rules.ref = (σ, θ, {e}) => {
+         let [σ1, v] = ↆ(σ, θ, e);
+         let a = Object.keys(σ1).length;
+         let σ2 = Object.create(σ1);
+         σ2[a] = mk_facet(pc, v, bottom);
+         return [ σ2, address(a) ];
+       };
+       let r = with_pc(new Set(default_pc), () =>
+                       base.interpretProgram(AST, env, store));
+       base._innards.rules.ref = old_ref;
+       return r;
+     }
+   #+END_SRC
+
+   Again, this construct is emulating a dynamic scoping of the
+   =rules.ref= function.
 
 ** Haskell
 Building scaffolding with languages features has the following
