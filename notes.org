@@ -1207,8 +1207,6 @@ Narcissus or JavaScript.
 We will now exhibit variations in writing the instrumentation as
 a separate module with minimal code duplication.
 
-** Extending
-
 ** The expression problem
 First, let’s list the additions brought by our extension to the
 interpreter:
@@ -1353,101 +1351,231 @@ standard interpreter.
 Looking at the diff, we can put =mk_facet=, =facet= and the
 extension to =Set.prototype= in a separate file right away.
 
+**** Handling the extra PC parameter
 The second, more pervasive change is the addition of the program
 counter context in every call.  There are several solutions to this
 problem:
 
-1. We can use a global variable for the ‘pc’.  This eliminates the
-   need to pass the ‘pc’ as a formal parameter to most functions, and
-   to pass it down to tail calls.  However, we then need to save the
-   previous value of this global pc when temporarily changing the
-   current pc to evaluate branches in =facet.eval_assign= and
-   =facet.eval_apply=.
+***** Using a global variable
+We can use a global variable for the ‘pc’.  This eliminates the
+need to pass the ‘pc’ as a formal parameter to most functions, and
+to pass it down to tail calls.  However, we then need to save the
+previous value of this global pc when temporarily changing the
+current pc to evaluate branches in =facet.eval_assign= and
+=facet.eval_apply=.
 
-   With the ‘pc’ argument:
-   #+BEGIN_SRC js
-     let [σ1, vh1] = vh.eval_apply(σ, pc.union(k), v2);
-     let [σ2, vl1] = vl.eval_apply(σ1, pc.union(-k), v2);
-   #+END_SRC
+With the ‘pc’ argument:
+#+BEGIN_SRC js
+  let [σ1, vh1] = vh.eval_apply(σ, pc.union(k), v2);
+  let [σ2, vl1] = vl.eval_apply(σ1, pc.union(-k), v2);
+#+END_SRC
 
-   With a global variable ‘pc’:
-   #+BEGIN_SRC js
-     let pc_old = pc;
-     pc = pc.union(k);
-     let [σ1, vh1] = vh.eval_apply(σ, v2);
-     pc = pc.union(-k);
-     let [σ2, vl1] = vl.eval_apply(σ1, v2);
-     pc = pc_old;
-   #+END_SRC
+With a global variable ‘pc’:
+#+BEGIN_SRC js
+  let pc_old = pc;
+  pc = pc.union(k);
+  let [σ1, vh1] = vh.eval_apply(σ, v2);
+  pc = pc.union(-k);
+  let [σ2, vl1] = vl.eval_apply(σ1, v2);
+  pc = pc_old;
+#+END_SRC
 
-   This temporary rewriting of a variable is essentially simulating a
-   dynamic binding of the ‘pc’ variable.  There are no built-ins
-   constructs or syntactic sugar for dynamic binding in JavaScript,
-   but we can add one for this particular variable.
+This temporary rewriting of a variable is essentially simulating a
+dynamic binding of the ‘pc’ variable.  There are no built-ins
+constructs or syntactic sugar for dynamic binding in JavaScript,
+but we can add one for this particular variable.
 
-   #+BEGIN_SRC js
-     function with_pc(new_pc, thunk) {
-       let old_pc = pc;
-       pc = new_pc;
-       let ret = thunk();
-       pc = old_pc;
-       return ret;
-     }
-   #+END_SRC
+#+BEGIN_SRC js
+  function with_pc(new_pc, thunk) {
+    let old_pc = pc;
+    pc = new_pc;
+    let ret = thunk();
+    pc = old_pc;
+    return ret;
+  }
+#+END_SRC
 
-   Now the =facet.eval_apply= function is cleaner:
+Now the =facet.eval_apply= function is cleaner:
 
-   #+BEGIN_SRC js
-     let [σ1, vh1] = with_pc(pc.union(k), () => vh.eval_apply(σ, v2));
-     let [σ2, vl1] = with_pc(pc.union(-k), () => vl.eval_apply(σ1, v2));
-     return [ σ2, mk_facet(k, vh1, vl1) ];
-   #+END_SRC
+#+BEGIN_SRC js
+  let [σ1, vh1] = with_pc(pc.union(k), () => vh.eval_apply(σ, v2));
+  let [σ2, vl1] = with_pc(pc.union(-k), () => vl.eval_apply(σ1, v2));
+  return [ σ2, mk_facet(k, vh1, vl1) ];
+#+END_SRC
 
-   [[file:js/lab/oo-split-global/base.js]]
-   #+BEGIN_SRC js
+The ‘pc’ parameter is thus part of the closure of all facet-related
+functions.  The =with_pc= construct require mutability in order to
+change the current program counter referenced in the closure.
 
-   #+END_SRC
+***** Using a context object
+Using a global variable for just the ‘pc’ and not the store or
+environment seems heterogeneous.  We can adopt the position that
+the ‘pc’ is an extension to the state of the interpreter, and
+bundle all this state in a ‘context’ objet passed around in
+function calls.  Then we profit from the dynamic nature of
+JavaScript objects: we can add any property at runtime.  Rather
+than hiding the ‘pc’ away, it makes the state passing explicit, and
+removes the need for =with_pc=.
 
-2. Using a global variable for just the ‘pc’ and not the store or
-   environment seems heterogeneous.  We can adopt the position that
-   the ‘pc’ is an extension to the state of the interpreter, and
-   bundle all this state in a ‘context’ objet passed around in
-   function calls.  Then we profit from the dynamic nature of
-   JavaScript objects: we can add any property at runtime.  Rather
-   than hiding the ‘pc’ away, it makes the state passing explicit, and
-   removes the need for =with_pc=.
+This solution has the benefit of homogenizing the order of formal
+parameters: the context object will always be the first one, and
+the =eval= functions will always return a context object rather
+than just the store.
 
-   This solution has the benefit of homogenizing the order of formal
-   parameters: the context object will always be the first one, and
-   the =eval= functions will always return a context object rather
-   than just the store.
+Here is what the third branch of =facet.eval_apply= looks like:
 
-   Here is what the third branch of =facet.eval_apply= looks like:
+#+BEGIN_SRC js
+  let [C1, vh1] = vh.eval_apply(with_pc(C, C.pc.union(k)), v2);
+  let [C2, vl1] = vl.eval_apply(with_pc(C1, C.pc.union(-k)), v2);
+  return [ C2, mk_facet(k, vh1, vl1) ];
+#+END_SRC
 
-   #+BEGIN_SRC js
-     let [C1, vh1] = vh.eval_apply(with_pc(C, C.pc.union(k)), v2);
-     let [C2, vl1] = vl.eval_apply(with_pc(C1, C.pc.union(-k)), v2);
-     return [ C2, mk_facet(k, vh1, vl1) ];
-   #+END_SRC
+The evaluation of functions now explicitly deal with contexts:
 
-   The evaluation of functions now explicitly deal with contexts:
+#+BEGIN_SRC js
+  function app(e1, e2) {
+    return {
+      eval(C) {
+        let [C1, v1] = e1.eval(C);
+        let [C2, v2] = e2.eval(C1);
+        return v1.eval_apply(C2, v2);
+      }
+    };
+  }
+#+END_SRC
 
-   #+BEGIN_SRC js
-     function app(e1, e2) {
-       return {
-         eval(C) {
-           let [C1, v1] = e1.eval(C);
-           let [C2, v2] = e2.eval(C1);
-           return v1.eval_apply(C2, v2);
-         }
-       };
-     }
-   #+END_SRC
+The signatures are simpler, though we lose a bit in legibility, as =C=
+is opaque: we do not see what the context made is of by looking at the
+formal parameters.  Only looking at the entry point
+(=interpretProgram=) reveals its contents.
 
-   The signatures are simpler, though we lose a bit in legibility, as
-   =C= is opaque: we do not see what the context made is of by looking
-   at the formal parameters.  Only looking at the entry point
-   (=interpretProgram=) reveals its contents.
+The context object bundles all the state needed by the interpreter,
+and its extensions.  Adding another piece of state is modular since
+the base interpreter already passes down this context object.
+
+This solution does not require mutability, but it benefits from
+dynamic typing.  In the case of the base interpreter, the context
+object has type (Store * Environment), while in the faceted
+interpreter, it has type (Store * Environment * PC).
+
+Note that we could combine both methods, and avoid passing the context
+object explicitly in all functions by using a global variable.  In
+that case, both mutability and dynamic typing are leveraged.
+
+**** Handling the change in the reference rule
+With the extra ‘pc’ out of the way, the only change remaining is the
+=mk_facet= call in the reference rule.  This is how runtime faceted
+values are effectively created.
+
+#+BEGIN_SRC diff
+79c79
+<       σ2[a] = mk_facet(pc, v, bottom);
+---
+>       σ2[a] = v;
+#+END_SRC
+
+We can solve this by creating two different versions of the =ref=
+function, one with the standard behavior, and one suited for the
+instrumentation.
+
+#+BEGIN_SRC js
+  function ref(e) {
+    return {
+      eval(σ, θ) {
+        let [σ1, v] = e.eval(σ, θ);
+        let a = Object.keys(σ1).length;
+        let σ2 = Object.create(σ1);
+        σ2[a] = v;
+        return [ σ2, address(a) ];
+      }
+    };
+  }
+#+END_SRC
+
+#+BEGIN_SRC js
+  function ref(e) {
+    return {
+      eval(σ, θ) {
+        let [σ1, v] = e.eval(σ, θ);
+        let a = Object.keys(σ1).length;
+        let σ2 = Object.create(σ1);
+        σ2[a] = mk_facet(pc, v, bottom);
+        return [ σ2, address(a) ];
+      }
+    };
+  }
+#+END_SRC
+
+But how do we differentiate which version of =ref= to use when calling
+=interpretProgram=?  We need namespaces.  Using objects as namespaces,
+both versions of =ref= can coexist.
+
+#+BEGIN_SRC js
+  this.base = {
+    interpretProgram,
+    c, v, fun, app, ref, deref, assign,
+    _innards: { bottom, address, closure}
+  };
+#+END_SRC
+
+The base interpreter exports both public interface and a “restricted”
+one intended for extension purposes.
+
+#+BEGIN_SRC js
+  this.facets = {
+    __proto__: this.base,
+    interpretProgram,
+    ref
+  };
+#+END_SRC
+
+The instrumented interpreter exports the same interface as the base,
+only overriding definitions for =ref= and =interpretProgram=.
+
+Both interpreters can then be tested independently.
+
+#+BEGIN_SRC js
+  with (base) {
+    console.log('std', interpretProgram(
+      app(fun('x', deref(v('x'))),
+          ref(c(42))),
+      {}, {}
+    ));
+  }
+
+  with (facets) {
+    console.log('facets', interpretProgram(
+      app(fun('x', deref(v('x'))),
+          ref(c(42))),
+      {}, {}, [1]
+    ));
+  }
+#+END_SRC
+
+Finally, both base interpreters (with a global ‘pc’, and with a
+context object) are free of instrumentation-specific concerns.  In
+fact, the base interpreter with the global ‘pc’ is /identical/ to the
+base object-oriented interpreter.
+
+**** Summary
+We split the object-oriented interpreter into two modules:
+1. The base interpreter which contains no concerns pertaining to
+   faceted evaluation.
+2. The facet interpreter which extends the context of the base
+   interpreter, either by using a (delimited) global, or by extending
+   the context object.  The facet interpreter then selects and
+   overrides the entry point (=interpretProgram=) and the reference
+   rule (=ref=).
+
+We used two different mechanisms to handle the extra ‘pc’ parameter:
+1. A ‘pc’ variable in the closure of all facet-related functions.
+   Mutability of this variable is required for this solution to work.
+2. Modifying the base interpreter to use a context object for the
+   store and environment.  We then leveraged the ability to add
+   properties to existing objects and included the program counter in
+   this context.  Mutability is not required, but dynamic typing
+   allows us to use a context object with two incompatibles types.
+
 
 ** Haskell
 Building scaffolding with languages features has the following
@@ -1475,6 +1603,8 @@ The monadic interpreter is mostly taken from [[http://homepages.inf.ed.ac.uk/wad
 
 - [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]]
   + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
+
+
 
 **** Either data type
 See [[file:hs/extend-types/Extension.fail.1.hs]].  Types are extended like

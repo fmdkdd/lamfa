@@ -1,3 +1,9 @@
+(function(){
+
+let bottom = base._innards.bottom;
+let address = base._innards.address;
+let with_ctxt = base._innards.with_ctxt;
+
 Set.prototype.union = function(elem) {
   let n = new Set(this);
   n.add(elem);
@@ -53,6 +59,18 @@ function facet(k, vh, vl) {
   };
 }
 
+function ref(e) {
+  return {
+    eval(σ, θ) {
+      let [σ1, v] = e.eval(σ, θ);
+      let a = Object.keys(σ1).length;
+      let σ2 = Object.create(σ1);
+      σ2[a] = mk_facet(pc, v, bottom);
+      return [ σ2, address(a) ];
+    }
+  };
+}
+
 function with_pc(new_pc, thunk) {
   let old_pc = pc;
   pc = new_pc;
@@ -63,7 +81,16 @@ function with_pc(new_pc, thunk) {
 
 let pc = null;
 
-function interpretFacetProgram(AST, env = {}, store = {}, default_pc = []) {
+function interpretProgram(AST, env = {}, store = {}, default_pc = []) {
   return with_pc(new Set(default_pc), () =>
-                 interpretProgram(AST, env, store));
+                 base.interpretProgram(AST, env, store));
 }
+
+// Exports
+this.facets = {
+  __proto__: this.base,
+  interpretProgram,
+  ref
+};
+
+}());

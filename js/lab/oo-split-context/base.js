@@ -1,3 +1,5 @@
+(function() {
+
 let bottom = {
   eval_apply(C) {
     return [ C, bottom ];
@@ -76,7 +78,7 @@ function ref(e) {
       let [C1, v] = e.eval(C);
       let a = Object.keys(C1.σ).length;
       let C2 = with_ctxt(C1, {σ: Object.create(C1.σ)});
-      C2.σ[a] = mk_facet(C1.pc, v, bottom);
+      C2.σ[a] = v;
       return [ C2, address(a) ];
     }
   };
@@ -110,15 +112,11 @@ function interpretProgram(AST, env = {}, store = {}) {
   return AST.eval({σ: env, θ: store});
 }
 
-// Test
-// console.log(interpretProgram(
-//   app(fun('x', deref(v('x'))),
-//       ref(c(42))),
-//   {}, {}
-// ));
+// Exports
+this.base = {
+  interpretProgram,
+  c, v, fun, app, ref, deref, assign,
+  _innards: { bottom, address, closure, with_ctxt}
+};
 
-console.log(interpretFacetProgram(
-  app(fun('x', deref(v('x'))),
-      ref(c(42))),
-  {}, {}, [1]
-));
+}());
