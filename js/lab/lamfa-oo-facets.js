@@ -149,7 +149,7 @@ function assign(e1, e2) {
     eval(σ, θ, pc) {
       let [σ1, v1] = e1.eval(σ, θ, pc);
       let [σ2, v2] = e2.eval(σ1, θ, pc);
-      return [ v1.eval_assign(σ2, pc, v1, v2), v2 ];
+      return [ v1.eval_assign(σ2, pc, v2), v2 ];
     }
   };
 }

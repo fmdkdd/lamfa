@@ -96,7 +96,7 @@ function assign(e1, e2) {
     eval(σ, θ) {
       let [σ1, v1] = e1.eval(σ, θ);
       let [σ2, v2] = e2.eval(σ1, θ);
-      return [ v1.eval_assign(σ2, v1, v2), v2 ];
+      return [ v1.eval_assign(σ2, v2), v2 ];
     }
   };
 }
