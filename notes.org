@@ -1727,6 +1727,20 @@ extensions (since we do not /extend/ but /replace/ the base
 functionality).  A proper dynamic scoping of the =rules= object has
 none of these downsides.
 
+As a compromise, we can recognize that the pattern matching done for
+AST nodes is trivial: the objects returned by =app=, =ref=, etc. only
+have one method, =eval=.  Instead of returning objects, we can return
+closures directly and eliminate the need for the =rules= object.
+
+#+BEGIN_SRC js
+  function ref(e) {
+    return (σ, θ) => { ... };
+  }
+#+END_SRC
+
+This allows us to override the functionality of =ref= using a
+namespace, as we did in the object-oriented approach.
+
 **** Summary
 The two solutions (global variable and context object) for dealing
 with the extra ‘pc’ parameter can be applied here as well.  The same
