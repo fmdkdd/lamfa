@@ -1348,8 +1348,8 @@ instrumentation, ‘facets.js’.  The ‘base.js’ file should not contain
 any instrumentation-specific code, and be as close as possible to the
 standard interpreter.
 
-Looking at the diff, we can put =mk_facet=, =facet= and the
-extension to =Set.prototype= in a separate file right away.
+Looking at the diff, we can put =mk_facet=, =facet= and the extension
+to =Set.prototype= in a separate file right away.
 
 **** Handling the extra PC parameter
 The second, more pervasive change is the addition of the program
@@ -1357,12 +1357,11 @@ counter context in every call.  There are several solutions to this
 problem:
 
 ***** Using a global variable
-We can use a global variable for the ‘pc’.  This eliminates the
-need to pass the ‘pc’ as a formal parameter to most functions, and
-to pass it down to tail calls.  However, we then need to save the
-previous value of this global pc when temporarily changing the
-current pc to evaluate branches in =facet.eval_assign= and
-=facet.eval_apply=.
+We can use a global variable for the ‘pc’.  This eliminates the need
+to pass the ‘pc’ as a formal parameter to most functions, and to pass
+it down to tail calls.  However, we then need to save the previous
+value of this global pc when temporarily changing the current pc to
+evaluate branches in =facet.eval_assign= and =facet.eval_apply=.
 
 With the ‘pc’ argument:
 #+BEGIN_SRC js
@@ -1411,18 +1410,17 @@ dynamic scoping [Art of Interp].
 
 ***** Using a context object
 Using a global variable for just the ‘pc’ and not the store or
-environment seems heterogeneous.  We can adopt the position that
-the ‘pc’ is an extension to the state of the interpreter, and
-bundle all this state in a ‘context’ objet passed around in
-function calls.  Then we profit from the dynamic nature of
-JavaScript objects: we can add any property at runtime.  Rather
-than hiding the ‘pc’ away, it makes the state passing explicit, and
-removes the need for =with_pc=.
+environment seems heterogeneous.  We can adopt the position that the
+‘pc’ is an extension to the state of the interpreter, and bundle all
+this state in a ‘context’ objet passed around in function calls.  Then
+we profit from the dynamic nature of JavaScript objects: we can add
+any property at runtime.  Rather than hiding the ‘pc’ away, it makes
+the state passing explicit, and removes the need for =with_pc=.
 
 This solution has the benefit of homogenizing the order of formal
-parameters: the context object will always be the first one, and
-the =eval= functions will always return a context object rather
-than just the store.
+parameters: the context object will always be the first one, and the
+=eval= functions will always return a context object rather than just
+the store.
 
 Here is what the third branch of =facet.eval_apply= looks like:
 
@@ -1579,6 +1577,9 @@ We used two different mechanisms to handle the extra ‘pc’ parameter:
    this context.  Mutability is not required, but dynamic typing
    allows us to use a context object with two incompatibles types.
 
+Overriding the =ref= function required only delegation using the
+prototype chain.
+
 *** Split pattern-matching instrumented interpreter into modules
 We can handle the extra ‘pc’ parameter in the same ways we did with
 the object-oriented interpreter.
@@ -1586,83 +1587,156 @@ the object-oriented interpreter.
 However, when we try to extend the =ref= rule, two things are
 different.
 
-1. The =eval_apply=, =eval_deref= and =eval_assign= code for facet
-   values is split across the three =application_rules=, =deref_rules=
-   and =assign_rules= objects.  In the object-oriented approach, they
-   were regrouped under the same =facet= object.
+**** The facet-specific rules are scattered
+The =eval_apply=, =eval_deref= and =eval_assign= code for facet values
+is split across the three =application_rules=, =deref_rules= and
+=assign_rules= objects.  In the object-oriented approach, they were
+regrouped under the same =facet= object.
 
-   #+BEGIN_SRC js
-     function facet(k, vh, vl) {
-       return {
-         eval_apply(σ, v2) {...},
-         eval_deref(σ) {...},
-         eval_assign(σ, v) {...}
-       };
-     }
-   #+END_SRC
+#+BEGIN_SRC js
+  function facet(k, vh, vl) {
+    return {
+      eval_apply(σ, v2) {...},
+      eval_deref(σ) {...},
+      eval_assign(σ, v) {...}
+    };
+  }
+#+END_SRC
 
-   #+BEGIN_SRC js
-     base.application_rules.facet = (σ, {k, vh, vl}, v2) => {...};
-     base.deref_rules.facet = (σ, {k, vh, vl}) => {...};
-     base.assign_rules.facet = (σ, {k, vh, vl}, v) => {...};
-   #+END_SRC
+#+BEGIN_SRC js
+  base.application_rules.facet = (σ, {k, vh, vl}, v2) => {...};
+  base.deref_rules.facet = (σ, {k, vh, vl}) => {...};
+  base.assign_rules.facet = (σ, {k, vh, vl}, v) => {...};
+#+END_SRC
 
-   This is a manifestation of the expression problem, or the “tyranny
-   of the primary”: in the object-oriented approach, adding a term is
-   just adding an object with all its evaluation functions; while
-   adding evaluation functions requires modifying all the objects.
-   Note that since in JavaScript objects can be extended at runtime,
-   the primary decomposition has a lower impact.
+This is a manifestation of the expression problem, or the “tyranny of
+the primary decomposition”: in the object-oriented approach, adding a
+term is just adding an object with all its evaluation functions; while
+adding evaluation functions requires modifying all the objects.  Note
+that since in JavaScript objects can be extended at runtime, the
+primary decomposition has a lower impact.
 
-2. In the object-oriented approach, we redefined the =ref= function in
-   the facets module and delegated the other rules to the base
-   interpreter.  Here we cannot do so.
+However, here we have to add the =facet= rules to the base objects
+directly.  A more modular approach would be to create new rules
+objects that extends (by prototype links) the base rules objects.  But
+this is not an option here because the base rules objects are enclosed
+by the evaluation functions.  If we create a =facet_application_rules=
+object like so:
 
-   The =rules= object is in the closure of =base.interpretNode=.
-   Extending the =rules= object with a new =ref= function would not
-   change the behavior of =base.interpretNode=.
+#+BEGIN_SRC js
+  facet_application_rules = {
+    __proto__: base.application_rules,
+    facet(σ, {k, vh, vl}, v2) => {...}
+  };
+#+END_SRC
 
-   #+BEGIN_SRC js
-     let rules = {
-       __proto__: base.rules,
-       ref(σ, θ, {e}) {
-         let [σ1, v] = ↆ(σ, θ, e);
-         let a = Object.keys(σ1).length;
-         let σ2 = Object.create(σ1);
-         σ2[a] = mk_facet(pc, v, bottom);
-         return [ σ2, address(a) ];
-       }
-     };
-   #+END_SRC
+Then we have to redefine the =eval_apply= function to call this new
+object instead of the =base.application_rules=.
 
-   Trying to redefine a new =interpretNode= function in the facets
-   module to close over this new =rules= object is not a solution.
-   Rules from the base interpreter will still call the
-   =base.interpretNode= function which refer to the =base.rules=
-   object.
+#+BEGIN_SRC js
+  function eval_apply(σ, v1, v2) {
+    return facet_application_rules[v1.type](σ, v1, v2);
+  }
+#+END_SRC
 
-   What does work is to ‘fluid-let’ the =rules= object inside
-   =facets.interpretProgram=.
+But =eval_apply= is in the closure of the =rules.app= function, so we
+have to redefine it as well just to be able to update its closure.
 
-   #+BEGIN_SRC js
-     function interpretProgram(AST, env = {}, store = {}, default_pc = []) {
-       let old_ref = base._innards.rules.ref;
-       base._innards.rules.ref = (σ, θ, {e}) => {
-         let [σ1, v] = ↆ(σ, θ, e);
-         let a = Object.keys(σ1).length;
-         let σ2 = Object.create(σ1);
-         σ2[a] = mk_facet(pc, v, bottom);
-         return [ σ2, address(a) ];
-       };
-       let r = with_pc(new Set(default_pc), () =>
-                       base.interpretProgram(AST, env, store));
-       base._innards.rules.ref = old_ref;
-       return r;
-     }
-   #+END_SRC
+#+BEGIN_SRC js
+  app(σ, θ, {e1, e2}) {
+    ...
+    return eval_apply(σ2, v1, v2);
+  },
+#+END_SRC
 
-   Again, this construct is emulating a dynamic scoping of the
-   =rules.ref= function.
+And we would have to do the same for every rules object, and for every
+function that refer to these rules object.  In the end, we are back to
+copy-pasting the base interpreter just to update the closures of its
+functions.
+
+It is clear that the lexical scoping of the rules object is the issue.
+Being able to refer to these object from a dynamic scope would resolve
+it.
+
+**** Extending the ref function
+In the object-oriented approach, we redefined the =ref= function in
+the facets module and delegated the other rules to the base
+interpreter.  Here we cannot do so.
+
+The =rules= object is in the closure of =base.interpretNode=.
+Extending the =rules= object with a new =ref= function would not
+change the behavior of =base.interpretNode=.
+
+#+BEGIN_SRC js
+  let rules = {
+    __proto__: base.rules,
+    ref(σ, θ, {e}) {
+      let [σ1, v] = ↆ(σ, θ, e);
+      let a = Object.keys(σ1).length;
+      let σ2 = Object.create(σ1);
+      σ2[a] = mk_facet(pc, v, bottom);
+      return [ σ2, address(a) ];
+    }
+  };
+#+END_SRC
+
+Trying to redefine a new =interpretNode= function in the facets module
+to close over this new =rules= object is not a solution.  Rules from
+the base interpreter will still call the =base.interpretNode= function
+which refer to the =base.rules= object.
+
+What does work is to ‘fluid-let’ the =rules= object inside
+=facets.interpretProgram=.
+
+#+BEGIN_SRC js
+  function interpretProgram(AST, env = {}, store = {}, default_pc = []) {
+    let old_ref = base._innards.rules.ref;
+    base._innards.rules.ref = (σ, θ, {e}) => {
+      let [σ1, v] = ↆ(σ, θ, e);
+      let a = Object.keys(σ1).length;
+      let σ2 = Object.create(σ1);
+      σ2[a] = mk_facet(pc, v, bottom);
+      return [ σ2, address(a) ];
+    };
+    let r = with_pc(new Set(default_pc), () =>
+                    base.interpretProgram(AST, env, store));
+    base._innards.rules.ref = old_ref;
+    return r;
+  }
+#+END_SRC
+
+Note that, again, this construct is emulating a dynamic scoping of the
+=rules.ref= function.  We could define a function similar to =with_pc=
+and write the following instead:
+
+#+BEGIN_SRC js
+  function interpretProgram(AST, env = {}, store = {}, default_pc = []) {
+    return with_ref((σ, θ, {e}) => { ... }, () =>
+                    with_pc(new Set(default_pc), () =>
+                            base.interpretProgram(AST, env, store)));
+  }
+#+END_SRC
+
+But at this point, having to write several ‘with’ functions becomes a
+pattern we would like to abstract one and for all.
+
+Furthermore, this emulation is a brittle way of extending the
+functionality.  First we add coupling by using the =base._innards=
+interface; secondly we disallow any opportunity for combining
+extensions (since we do not /extend/ but /replace/ the base
+functionality).  A proper dynamic scoping of the =rules= object has
+none of these downsides.
+
+**** Summary
+The two solutions (global variable and context object) for dealing
+with the extra ‘pc’ parameter can be applied here as well.  The same
+remarks apply.
+
+However, extending the =ref= function requires the ability to modify
+values inside the closures of the evaluation function
+=interpretNode=.  This ability is not provided by the language, but
+shadowing the =ref= function by using dynamic scoping achieves the
+same effects.
 
 ** Haskell
 Building scaffolding with languages features has the following
