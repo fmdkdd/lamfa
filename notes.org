@@ -1663,6 +1663,20 @@ In the object-oriented approach, we redefined the =ref= function in
 the facets module and delegated the other rules to the base
 interpreter.  Here we cannot do so.
 
+In the object-oriented interpreter, the =ref= function returns an
+object which contains its own evaluation method.  Thus, by overriding
+this =ref= function we can change the way =ref= nodes are evaluated.
+In the client code, a call to =ref= is dynamically dispatched to
+either the base or facet version.
+
+In the pattern matching interpreter, the =ref= function returns an
+object /without/ an evaluation function -- only bearing a type used by
+=interpretNode= to dispatch to the correct evaluation function.  The
+evaluation function is in the =rules= object, separated from the
+object created by =ref=.  To change the evaluation of =ref= nodes, we
+need to change the =ref= function inside the =rules= object, but we
+also need to update the dispatching function.
+
 The =rules= object is in the closure of =base.interpretNode=.
 Extending the =rules= object with a new =ref= function would not
 change the behavior of =base.interpretNode=.
@@ -1683,7 +1697,9 @@ change the behavior of =base.interpretNode=.
 Trying to redefine a new =interpretNode= function in the facets module
 to close over this new =rules= object is not a solution.  Rules from
 the base interpreter will still call the =base.interpretNode= function
-which refer to the =base.rules= object.
+which refer to the =base.rules= object.  Redefining every function
+that calls =base.interpretNode= to call =facets.interpretNode= would
+work, but that’s basically duplicating the base interpreter.
 
 What does work is to ‘fluid-let’ the =rules= object inside
 =facets.interpretProgram=.
@@ -1747,12 +1763,42 @@ with the extra ‘pc’ parameter can be applied here as well.  The same
 remarks apply.
 
 However, extending the =ref= function requires the ability to modify
-values inside the closures of the evaluation function
-=interpretNode=.  This ability is not provided by the language, but
-shadowing the =ref= function by using dynamic scoping achieves the
-same effects.
+values inside the closures of the evaluation function =interpretNode=.
+This ability is not provided by the language, but shadowing the =ref=
+function (or the rules object, or the =interpretNode= dispatcher) by
+using dynamic scoping achieves the same effects.
+
+*** Summary of JavaScript variations
+It appears that, the more the interpreter rely on dynamic features,
+the easier it is to instrument.  The dynamic dispatching of the
+object-oriented interpreter allows the effortless addition of the
+=facet= value.  In all the other cases, dynamic scoping was
+prescribed.
+
+Intuitively, it makes sense.  We want different instances of the same
+names (=interpretProgram=, =ref=, =rules=) to have different
+behaviors, depending on context.  This is exactly what dynamic
+dispatching is for: the same method slot can refer to different
+implementations, depending on the actual instance of the receiver.
+This is also the difference between lexical and dynamic scoping: the
+former binds free names to their static surrounding context at
+definition time, while the latter binds free names to their caller’s
+context at runtime.
+
+In a language with dynamic scoping the interpreter should be a breeze
+to instrument.  That is the focus of the [[Lisp][Lisp variations]].
+
+** Lisp
 
 ** Haskell
+Dynamic scoping is far from common in today’s mainstream languages.
+It brings additional complexities in thread-safety and tail call
+optimization.  Even without proper dynamic scoping, we can emulate it
+if the language allows mutability of variables.  This begs the
+question: what tools do we have in a pure, immutable language without
+dynamic scoping to deal with the problem of modular instrumentation?
+
+
 Building scaffolding with languages features has the following
 advantages:
 + No extra syntax or rewriting program required
