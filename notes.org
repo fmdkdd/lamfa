@@ -1770,10 +1770,11 @@ using dynamic scoping achieves the same effects.
 
 *** Summary of JavaScript variations
 It appears that, the more the interpreter rely on dynamic features,
-the easier it is to instrument.  The dynamic dispatching of the
+the easier it is to instrument.  The /dynamic dispatching/ of the
 object-oriented interpreter allows the effortless addition of the
-=facet= value.  In all the other cases, dynamic scoping was
-prescribed.
+=facet= value.  In all the other cases, /dynamic scoping/ was
+prescribed.  We also saw that /dynamic typing/ was required at least
+in the ‘context object’ solution to the extra ‘pc’ argument.
 
 Intuitively, it makes sense.  We want different instances of the same
 names (=interpretProgram=, =ref=, =rules=) to have different
@@ -1789,16 +1790,86 @@ In a language with dynamic scoping the interpreter should be a breeze
 to instrument.  That is the focus of the [[Lisp][Lisp variations]].
 
 ** Lisp
+Common Lisp offers both lexical and dynamic scoping of variables.  We
+implement the pattern-matching standard interpreter by defining the
+=*rules*= object to be dynamically scoped (by using =defparameter=).
+We follow the Common Lisp convention of using stars to surround a
+dynamically-scoped name.
+
+[[file:lisp/pm.lisp]]
+
+#+BEGIN_SRC lisp
+  (defparameter *rules*
+    `((c . ,(lambda (s env node) ...))
+
+      (ref . ,(lambda (s env node) ...))))
+
+  (defun eval-node (store env node)
+    (let ((f (lookup (car node) *rules*)))
+      (funcall f store env node)))
+
+  (defun eval-program (AST env store)
+    (eval-node store env AST))
+
+  (eval-program
+   '(app (fun "x" (deref (v "x")))
+         (ref (c 42)))
+   '() '())
+#+END_SRC
+
+The instrumentation is then effortless.  First we define the
+facet-specific rules by extending the basic rules objects (=append
+... *rules*=).
+
+#+BEGIN_SRC lisp
+  (defparameter *facets/rules*
+    (append
+     `((ref . ,(lambda (s env node)
+                 ...
+                 (mk-facet *pc* v1 bottom)
+                 ...)))
+     ,*rules*
+     ))
+
+  (defparameter *facets/application-rules* ...)
+  (defparameter *facets/deref-rules* ...)
+  (defparameter *facets/assign-rules* ...)
+#+END_SRC
+
+Note the reference to the free dynamic variable =*pc*=.  Then in the
+entry point to facet evaluation, we override the standard rules with
+the new ones.  We also declare the =*pc*= argument to be dynamically
+scoped inside this call, using =(declare (special *pc*))=.
+
+#+BEGIN_SRC lisp
+  (defun facets/eval-program (AST env store *pc*)
+    (declare (special *pc*))
+    (let ((*rules* *facets/rules*)
+          (*application-rules* *facets/application-rules*)
+          (*deref-rules* *facets/deref-rules*)
+          (*assign-rules* *facets/assign-rules*))
+      (eval-program AST env store)))
+
+  (facets/eval-program
+   '(app (fun "x" (deref (v "x")))
+         (ref (c 42)))
+   '() '() '(1))
+#+END_SRC
+
+So as anticipated, dynamic scoping is an adequate solution to the
+issues we ran into in the JavaScript variations.  But dynamic scoping
+is not available in all languages.  As a fallback, we saw that a
+language with mutable global variables could emulate dynamic scoping.
+This begs the question: in an immutable language without dynamic
+scoping, how do we deal with the problem of modular instrumentation?
+
+Furthermore, we also saw that dynamic typing was useful in the
+‘context’ object case.  What if we want to benefit from the guarantees
+provided by static types?  Is the modular instrumentation still
+feasible?  Is it cumbersome to write?  That is the focus of the
+[[Haskell][Haskell variations]].
 
 ** Haskell
-Dynamic scoping is far from common in today’s mainstream languages.
-It brings additional complexities in thread-safety and tail call
-optimization.  Even without proper dynamic scoping, we can emulate it
-if the language allows mutability of variables.  This begs the
-question: what tools do we have in a pure, immutable language without
-dynamic scoping to deal with the problem of modular instrumentation?
-
-
 Building scaffolding with languages features has the following
 advantages:
 + No extra syntax or rewriting program required
