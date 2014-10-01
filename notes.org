@@ -1353,10 +1353,15 @@ to =Set.prototype= in a separate file right away.
 
 **** Handling the extra PC parameter
 The second, more pervasive change is the addition of the program
-counter context in every call.  There are several solutions to this
-problem:
+counter context in every call.  There are at laest two solutions to
+this problem:
+1. Using a global variable.
+2. Using a context object.
 
 ***** Using a global variable
+[[file:js/lab/oo-split-global/base.js]]
+[[file:js/lab/oo-split-global/facets.js]]
+
 We can use a global variable for the ‘pc’.  This eliminates the need
 to pass the ‘pc’ as a formal parameter to most functions, and to pass
 it down to tail calls.  However, we then need to save the previous
@@ -1409,6 +1414,9 @@ Mutability can be waived as a requirement if the language supports
 dynamic scoping [Art of Interp].
 
 ***** Using a context object
+[[file:js/lab/oo-split-context/base.js]]
+[[file:js/lab/oo-split-context/facets.js]]
+
 Using a global variable for just the ‘pc’ and not the store or
 environment seems heterogeneous.  We can adopt the position that the
 ‘pc’ is an extension to the state of the interpreter, and bundle all
@@ -1463,6 +1471,9 @@ object explicitly in all functions by using a global variable.  In
 that case, both mutability and dynamic typing are leveraged.
 
 **** Handling the change in the reference rule
+[[file:js/lab/oo-split-global/base.js]]
+[[file:js/lab/oo-split-global/facets.js]]
+
 With the extra ‘pc’ out of the way, the only change remaining is the
 =mk_facet= call in the reference rule.  This is how runtime faceted
 values are effectively created.
@@ -1581,6 +1592,9 @@ Overriding the =ref= function required only delegation using the
 prototype chain.
 
 *** Split pattern-matching instrumented interpreter into modules
+[[file:js/lab/es6-split-global/base.js]]
+[[file:js/lab/es6-split-global/facets.js]]
+
 We can handle the extra ‘pc’ parameter in the same ways we did with
 the object-oriented interpreter.
 
@@ -1734,7 +1748,7 @@ and write the following instead:
 #+END_SRC
 
 But at this point, having to write several ‘with’ functions becomes a
-pattern we would like to abstract one and for all.
+pattern we would like to abstract away once and for all.
 
 Furthermore, this emulation is a brittle way of extending the
 functionality.  First we add coupling by using the =base._innards=
@@ -1747,6 +1761,9 @@ As a compromise, we can recognize that the pattern matching done for
 AST nodes is trivial: the objects returned by =app=, =ref=, etc. only
 have one method, =eval=.  Instead of returning objects, we can return
 closures directly and eliminate the need for the =rules= object.
+
+[[file:js/lab/closures/base.js]]
+[[file:js/lab/closures/facets.js]]
 
 #+BEGIN_SRC js
   function ref(e) {
@@ -1790,13 +1807,13 @@ In a language with dynamic scoping the interpreter should be a breeze
 to instrument.  That is the focus of the [[Lisp][Lisp variations]].
 
 ** Lisp
+[[file:lisp/pm.lisp]]
+
 Common Lisp offers both lexical and dynamic scoping of variables.  We
 implement the pattern-matching standard interpreter by defining the
 =*rules*= object to be dynamically scoped (by using =defparameter=).
 We follow the Common Lisp convention of using stars to surround a
 dynamically-scoped name.
-
-[[file:lisp/pm.lisp]]
 
 #+BEGIN_SRC lisp
   (defparameter *rules*
@@ -1895,8 +1912,6 @@ The monadic interpreter is mostly taken from [[http://homepages.inf.ed.ac.uk/wad
 
 - [[http://web.cecs.pdx.edu/~mpj/pubs/modinterp.html][Monads Transformers and Modular Interpreters]]
   + [[http://www.cas.mcmaster.ca/~kahl/FP/2003/Interpreter.pdf][Haskell implementation]]
-
-
 
 **** Either data type
 See [[file:hs/extend-types/Extension.fail.1.hs]].  Types are extended like
