@@ -614,7 +614,6 @@ handle facet values.
   diff js/lab/lamfa-es6-standard.js js/lab/lamfa-es6-facets.js; exit 0
 #+END_SRC
 
-#+RESULTS:
 #+begin_src diff
 7,8c7,8
 < function interpretNode(σ, θ, node) {
@@ -773,7 +772,9 @@ handle facet values.
 
 Our ad-hoc pattern matching is perhaps not the most straightforward
 way to write such an interpreter in JavaScript.  Another, maybe more
-familiar way is to use object-oriented dispatching.
+familiar way is to use object-oriented dispatching [fn:: And indeed,
+this form is quite similar to the Interpreter pattern from Gamma et
+al.].
 
 [[file:js/lab/lamfa-oo-standard.js]]
 #+BEGIN_SRC js
@@ -1063,13 +1064,12 @@ familiar way is to use object-oriented dispatching.
 
 #+END_SRC
 
-But here again, the pattern appear when looking at the diff.
+But here again, the pattern appears when looking at the diff.
 
 #+BEGIN_SRC sh :results pp
   diff js/lab/lamfa-oo-standard.js js/lab/lamfa-oo-facets.js; exit 0
 #+END_SRC
 
-#+RESULTS:
 #+begin_src diff
 0a1,53
 > Set.prototype.union = function(elem) {
@@ -1198,11 +1198,11 @@ But here again, the pattern appear when looking at the diff.
 #+end_src
 
 Hence, these patterns appear regardless of the instrumented language
-(lambda calculus and JavaScript), and regardless of the language
+(lambda calculus or JavaScript), and regardless of the language
 features used by the implementation (pattern matching or dynamic
 dispatch).  Therefore, the problem of finding a way to describe the
 instrumentation as a module and minimizing coupling is not specific to
-Narcissus or JavaScript.
+Narcissus or JavaScript interpreters.
 
 We will now exhibit variations in writing the instrumentation as
 a separate module with minimal code duplication.
@@ -1343,7 +1343,7 @@ See [[file:js/aoping.org]].
 
 *** Split OO-style instrumented interpreter into modules
 Let’s try to separate the object-oriented instrumented interpreter in
-two modules: one for the base interpreter, ‘base.js’, one for the
+two modules: one for the base interpreter, ‘base.js’, and one for the
 instrumentation, ‘facets.js’.  The ‘base.js’ file should not contain
 any instrumentation-specific code, and be as close as possible to the
 standard interpreter.
@@ -1353,7 +1353,7 @@ to =Set.prototype= in a separate file right away.
 
 **** Handling the extra PC parameter
 The second, more pervasive change is the addition of the program
-counter context in every call.  There are at laest two solutions to
+counter context in every call.  There are at least two solutions to
 this problem:
 1. Using a global variable.
 2. Using a context object.
@@ -1438,7 +1438,7 @@ Here is what the third branch of =facet.eval_apply= looks like:
   return [ C2, mk_facet(k, vh1, vl1) ];
 #+END_SRC
 
-The evaluation of functions now explicitly deal with contexts:
+The evaluation of functions now explicitly deals with contexts:
 
 #+BEGIN_SRC js
   function app(e1, e2) {
@@ -1510,7 +1510,7 @@ instrumentation.
         let [σ1, v] = e.eval(σ, θ);
         let a = Object.keys(σ1).length;
         let σ2 = Object.create(σ1);
-        σ2[a] = mk_facet(pc, v, bottom);
+        σ2[a] = mk_facet(pc, v, bottom); // this line changes
         return [ σ2, address(a) ];
       }
     };
@@ -1834,9 +1834,8 @@ dynamically-scoped name.
    '() '())
 #+END_SRC
 
-The instrumentation is then effortless.  First we define the
-facet-specific rules by extending the basic rules objects (=append
-... *rules*=).
+Instrumentation is then effortless.  First we define facet-specific
+rules by extending the basic rules objects (=append ... *rules*=).
 
 #+BEGIN_SRC lisp
   (defparameter *facets/rules*
@@ -1853,10 +1852,10 @@ facet-specific rules by extending the basic rules objects (=append
   (defparameter *facets/assign-rules* ...)
 #+END_SRC
 
-Note the reference to the free dynamic variable =*pc*=.  Then in the
-entry point to facet evaluation, we override the standard rules with
-the new ones.  We also declare the =*pc*= argument to be dynamically
-scoped inside this call, using =(declare (special *pc*))=.
+Note the reference to the free dynamic variable =*pc*=.  In the entry
+point to facet evaluation, we override the standard rules with the new
+ones.  We also declare the =*pc*= argument to be dynamically scoped
+inside this call, using =(declare (special *pc*))=.
 
 #+BEGIN_SRC lisp
   (defun facets/eval-program (AST env store *pc*)
