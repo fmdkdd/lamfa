@@ -2097,6 +2097,43 @@ dictionaries, and functions.]
 
 [Examples: modify + to add 2 (change return value); log calls (add side effect)]
 
+** Instrumenting the interpreter vs. rewriting the code
+An alternate way of changing the meaning of programs is to rewrite
+them.  Instead of modifying the interpreter for the base language, we
+express the instrumentation as a transformation on the AST of target
+programs.  This transformation typically produces a larger AST, but an
+AST of the base language.  Hence, the base interpreter needs no
+modification.
+
+Two questions can be raised about such transformations:
+1. Can we always find a transformation corresponding to an extension
+   of semantics, and vice versa?
+2. Are both approaches completely equivalent for all intents and
+   purposes?  In the case of faceted evaluation, the analysis would
+   now be a part of the program run by the base interpreter, meaning
+   that user code might have access to the state private to the
+   analysis, such as the program counter.  Can we devise a
+   transformation that guarantees that user code will never interfere
+   with the analysis?
+
+The answer to the first question is probably yes.  If we have an
+instrumented interpreter, and the language it targets is powerful
+enough, then we can always write the instrumented interpreter itself
+in this language.  From then on, we can always feed it a program of
+the instrumented language.  The other way around, it seems we can
+always extract the transformation and put it in the interpreter.
+
+Are they completely equivalent?  Theoretically, they might just be.
+But in practice, by instrumenting the interpreter we gain a layer of
+insulation, since JavaScript is only weakly reflexive; programs do not
+have access to the interpreter’s running state.  On the other hand,
+transformations are easier to compose and easier to prove correct.
+
+The [[http://www.cs.cornell.edu/Projects/polyglot/][Polyglot project]] is an extensible Java compiler front-end used for
+writing Jif, among other extensions.  It turns an extended AST into
+standard Java bytecode after several passes, all of which can be
+extended with low overhead.
+
 ** Questions [7/7]
 
 - [X] What difficulties arise from having a monadic interpreter as a
