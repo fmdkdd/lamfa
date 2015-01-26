@@ -1341,6 +1341,9 @@ monads, if you have a monadic interpreter.]
 ** JavaScript
 See [[file:js/aoping.org]].
 
+See also [[file:lassy15.org]] for a way to build interpreters
+incrementally.
+
 *** Split OO-style instrumented interpreter into modules
 Let’s try to separate the object-oriented instrumented interpreter in
 two modules: one for the base interpreter, ‘base.js’, and one for the
@@ -2732,3 +2735,8 @@ Family polymorphism?
 http://www.cs.uu.nl/foswiki/pub/Center/AspectAG/paper-icfp.pdf
 
 http://www.dblp.org/rec/bibtex/conf/haskell/StefanRMM11
+
+
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:

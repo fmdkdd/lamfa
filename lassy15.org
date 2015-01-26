@@ -1,0 +1,230 @@
+#+PROPERTY: header-args :results output :noweb yes
+# C-c C-v C-b org-babel-execute-buffer
+
+A simple way to build interpreters incrementally, as proposed to the
+LASSY’15 workshop at Modularity 15.
+
+* The code
+An arithmetic expression language, the example taken by Wadler and
+Odersky as a base to propose solutions to the expression problem.
+
+** The base datatype
+#+NAME: num
+#+BEGIN_SRC js
+  var num = {
+    new: function(n) { return {__proto__: this, n} },
+    eval: function() { return this.n }};
+#+END_SRC
+
+#+BEGIN_SRC js
+  <<num>>
+
+  var e1 = num.new(3);
+  print(e1.eval());
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+** Adding a data variant
+#+NAME: plus
+#+BEGIN_SRC js
+  var plus = {
+    new: function(l, r) { return {__proto__: this, l, r,} },
+    eval: function() { return this.l.eval() + this.r.eval() }};
+#+END_SRC
+
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+
+  var e2 = plus.new(num.new(1), num.new(2));
+  print(e2.eval());
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+** Adding an operation
+#+NAME: show-invasive
+#+BEGIN_SRC js
+  num.show = function() { return this.n.toString() }
+  plus.show = function() { return this.l.show() + '+' + this.r.show() }
+#+END_SRC
+
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+
+  var e2 = plus.new(num.new(1), num.new(2));
+
+  <<show-invasive>>
+
+  print(e2.show()); // Dynamic extension, without recreating the expression
+  print(plus.new(num.new(1), num.new(2)).show());
+#+END_SRC
+
+#+RESULTS:
+: 1+2
+: 1+2
+
+This extension is invasive: it modifies the prototypes of =num= and
+=plus=.  If we want, we can extend safely both objects.
+
+** Adding an operation as a module
+#+NAME: show
+#+BEGIN_SRC js
+  var show = function(base) {
+    var num = {__proto__: base.num,
+      show() { return this.n.toString() }};
+
+    var plus = {__proto__: base.plus,
+      show() { return this.l.show() + '+' + this.r.show() }};
+
+    return {num, plus};
+  };
+#+END_SRC
+
+#+NAME: show-ex1
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  var s = show({num, plus});
+  print(s.plus.new(s.num.new(1), s.num.new(2)).show());
+#+END_SRC
+
+Works, but can mix languages in unsafe ways:
+
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  var s = show({num, plus});
+
+  try { print(s.plus.new(num.new(1), s.num.new(2)).show()); }
+  catch (e) { print(e) }
+#+END_SRC
+
+#+RESULTS:
+: TypeError: this.l.show is not a function
+
+*** A use-case for =with=
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  with(show({num, plus})) {
+    print(plus.new(num.new(1), num.new(2)).show())
+  }
+#+END_SRC
+
+#+RESULTS:
+: 1+2
+
+Cannot mix languages anymore because of name shadowing: only one =num=
+and one =plus= is known in the body of =with=, and they are both from
+the same language.
+
+*** Selective imports with an IIFE
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  (function({num}) {
+    print(num.new(1).show())
+  }(show({num, plus})))
+#+END_SRC
+
+#+RESULTS:
+: 1
+
+Of course, here =plus= is in context, but we would actually put it in
+a =base= module as well.
+
+The two forms have a subtle difference: in a =with= we can modify the
+values of the scope object by assigning to them, but in the IIFE,
+assigning to the arguments has no effect outside the function.  In our
+two examples, we always pass a fresh module so there is no issue.
+
+* Discussion
+** Compatibility with other ways of constructing objects
+Num.prototype.eval, at least.
+
+** Extending objects safely
+How does that apply to built-in objects?  I tried to extend String,
+but I suspect that methods returning =this= are trouble.
+
+** Applicability to a pattern-matching decomposition
+
+** Extensibility versus security
+Core insight: adding indirection via names.  Lexically-closing over a
+name is less flexible than referring to this name via `this`.  Since
+`this` is dynamic, `this.n` can mean anything.  Give the possibility
+to anyone to modify `this`, and anyone can change the meaning of the
+code.  This turns JavaScript flaws into situational tools.  The same
+insight is at work in dynamic dispatch or the factory pattern: bind
+names late.
+
+But critics are well-founded.  Binding late means you cannot know with
+certainty what the code does; all the meanings may change at runtime.
+This is the price of flexibility: each time a name may change meaning
+at some point, you lose referential transparency, since you cannot
+substitute the name for its definition -- it has more than one.  The
+less you specify, the less coupling you have, the less you can
+guarantee about the program.  Security (knowing with certainty what a
+piece of code will do) is thus in opposition with extensibility
+(leaving room for extending or modifying the piece of code in any way
+possible).
+
+Examples of this spectrum: lexically binding attributes and methods of
+an object (non-revealing module pattern) vs. adding attributes and
+methods as properties.  Adding methods via prototypes add indirection.
+More indirection = more flexibility, but also less readability,
+because the structure is now more complex.  Same goes for the
+=__proto__: this= trick of my object pattern.
+
+** Static typing
+I suspect that (simple) static typing is incompatible with
+intercession.  Just add types to the JS examples and see what problems
+arise?
+
+** A combination of simple features
+The pattern presented make use of only simple features of the
+language: objects as dictionaries, manipulation of scope using
+function expressions ...
+
+Pretty sure that I could build a simple object language that would
+allow the expression of such constructs without the gotchas of
+JavaScript.
+
+** Scoping issues
+All my examples work fine when the AST is /lexically/ constructed in
+the body of a =with= or an IIFE.  It does not work anymore when the
+AST is constructed dynamically inside a =with=.
+
+#+BEGIN_SRC js
+function f() {
+  a();
+}
+
+with (module(a, b)) {
+  f()
+}
+#+END_SRC
+
+The =f= function has free variables.  I think that context-oriented
+programming allows this call to work, but is that a good thing?
+
+Another instance of the extensibility/security spectrum: do you allow
+free names to bind dynamically?
+
+Here, one solution would be to bind the names as arguments to =f=.
+
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# End:
