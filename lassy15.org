@@ -1,5 +1,141 @@
 #+PROPERTY: header-args :results output :noweb yes
 # C-c C-v C-b org-babel-execute-buffer
+# C-c C-x C-M-v org-redisplay-inline-images
+
+#+NAME: svg
+#+BEGIN_SRC js
+  function toMarkup(obj, open, close, attr) {
+    if (typeof obj !== 'object') return obj.toString();
+
+    let tagName = obj.t;
+    let attrs = Object.getOwnPropertyNames(obj.attrs).map((n) => attr(n, obj.attrs[n]));
+    let content = obj.children.map((o) => toMarkup(o, open, close, attr)).join('');
+    return open(tagName, attrs) + content + close(tagName);
+  }
+
+  function toSVG(obj) {
+    function openSVG(tagName, attrs) { return '<' + (tagName + ' ' + attrs.join(' ')).trim() + '>' }
+    function closeSVG(tagName) { return '</' + tagName + '>' }
+    function attrSVG(k, v) { return k  + '="' + v + '"' }
+    return toMarkup(obj, openSVG, closeSVG, attrSVG);
+  }
+
+  function t(tagName, ...args) {
+    let o = {
+      t: tagName,
+      attrs: Object.create(null),
+      a(k, v) { o.attrs[k] = v; return o },
+      children: args,
+    };
+    let shortcuts = ['width', 'height', 'fill', 'stroke', 'cx', 'cy', 'r',
+                     'x', 'y', 'x1', 'y1', 'x2', 'y2', 'rx', 'ry',
+                     'id', 'viewBox', 'refX', 'refY', 'markerUnits',
+                     'markerWidth', 'markerHeight', 'orient',
+                     'transform'];
+    shortcuts.forEach((s) => { o[s] = o.a.bind(o, s) });
+    return o;
+  }
+
+  function box(names) {
+    let marginTop = 0;
+    let marginBottom = 10;
+    let marginLeft = 7;
+    let marginRight = 10
+    let fontSize = 15;
+    let lineHeight = 18;
+    let charWidth = 9;
+
+    let longest = names.map((p) => p.length).reduce((a,b) => Math.max(a,b), 0);
+    let width = marginLeft + longest * charWidth + marginRight;
+    let height = marginTop + marginBottom + lineHeight * names.length;
+
+    let propText = names.map((n, i) => t('text', n).x(marginLeft)
+                                                   .y((i+1) * lineHeight)
+                                                   .fill('#657b83'));
+
+    let g = t('g',
+              t('rect').width(width).height(height).stroke('#657b83').fill('#fdf6e3'),
+              ...propText)
+      .a('font-size', fontSize)
+      .a('font-family', 'Monospace')
+      .height(height)
+      .width(width);
+
+    return g;
+  }
+
+  function link(a, b, options) {
+    let {vertical, dashed, reversed, offset} = options || {};
+    offset = offset || 15;
+
+    let arrowLength = 50;
+    let arrowTip = 15;
+    let space = arrowLength + arrowTip;
+
+    if (vertical) {
+      var g = above(a, b, space);
+      [a, b] = g.children;
+      var y1 = a.attrs.height;
+      var y2 = y1 + arrowLength;
+      var x1 = offset, x2 = offset;
+      var center = {x: x1, y: y1 + space / 2};
+    } else {
+      var g = beside(a, b, space);
+      [a, b] = g.children;
+      var x1 = a.attrs.width;
+      var x2 = x1 + arrowLength;
+      var y1 = offset, y2 = offset;
+      var center = {x: x1 + space / 2, y: y1};
+    }
+
+    let arrow = t('line').x1(x1).x2(x2).y1(y1).y2(y2).stroke('#fdf6e3')
+      .a('stroke-width', 5).a('marker-end', 'url(#triangle)');
+
+    if (dashed) arrow.a('stroke-dasharray', '3 1');
+    if (reversed) arrow.transform(`rotate(180 ${center.x} ${center.y})`);
+
+    return t('g', a, arrow, b).width(g.attrs.width).height(g.attrs.height);
+  }
+
+  function beside(a, b, hspace) {
+    hspace = hspace || 20;
+
+    return t('g', a, b.transform(`translate(${a.attrs.width + hspace}, 0)`))
+      .width(a.attrs.width + hspace + b.attrs.width)
+      .height(Math.max(a.attrs.height, b.attrs.height));
+  }
+
+  function above(a, b, vspace) {
+    vspace = vspace || 20;
+    return t('g', a, b.transform(`translate(0, ${a.attrs.height + vspace})`))
+      .width(Math.max(a.attrs.width, b.attrs.width))
+      .height(a.attrs.height + vspace + b.attrs.height);
+  }
+
+  function name(n) {
+    let g = box([n]);
+    g.children[0].rx(10).ry(10);
+    return g;
+  }
+
+  function ref(a, b, options) {
+    options = options || {};
+    options.dashed = true;
+    return link(a, b, options);
+  }
+
+  let proto = link;
+  let obj = function(o) { return box(Object.getOwnPropertyNames(o)) };
+
+  function svg(...gs) {
+    let triangle = t('marker', t('path').a('d', 'M 0 0 L 10 5 L 0 10 z'))
+      .id('triangle').viewBox('0 0 10 10').refX(0).refY(5)
+      .markerWidth(4).markerHeight(3)
+      .orient('auto').fill('#fdf6e3');
+
+    print(toSVG(t('svg', triangle, ...gs)));
+  }
+#+END_SRC
 
 A simple way to build interpreters incrementally, as proposed to the
 LASSY’15 workshop at Modularity 15.
@@ -26,6 +162,19 @@ Odersky as a base to propose solutions to the expression problem.
 #+RESULTS:
 : 3
 
+#+BEGIN_SRC js :results silent
+  <<num>>
+
+  <<svg>>
+  redirect('img/num.svg')
+  svg(ref(name('e1'),
+          proto(obj(num.new(3)),
+                ref(obj(num), name('num'),
+                    {reversed:true}))))
+#+END_SRC
+
+[[file:img/num.svg]]
+
 ** Adding a data variant
 #+NAME: plus
 #+BEGIN_SRC js
@@ -44,6 +193,27 @@ Odersky as a base to propose solutions to the expression problem.
 
 #+RESULTS:
 : 3
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+
+  <<svg>>
+  redirect('img/num-plus.svg')
+  var $e1 = ref(name('e1'),
+                proto(obj(num.new(3)),
+                      ref(obj(num), name('num'),
+                          {reversed:true})))
+
+  var $e2 = ref(name('e2'),
+                proto(obj(plus.new(num.new(1), num.new(2))),
+                      ref(obj(plus), name('plus'),
+                          {reversed:true})))
+
+  svg(above($e1, $e2))
+#+END_SRC
+
+[[file:img/num-plus.svg]]
 
 ** Adding an operation
 #+NAME: show-invasive
@@ -71,6 +241,29 @@ Odersky as a base to propose solutions to the expression problem.
 This extension is invasive: it modifies the prototypes of =num= and
 =plus=.  If we want, we can extend safely both objects.
 
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+  <<show-invasive>>
+
+  <<svg>>
+  redirect('img/show-invasive.svg')
+  var $e1 = ref(name('e1'),
+                proto(obj(num.new(3)),
+                      ref(obj(num), name('num'),
+                          {reversed:true})))
+
+  var $e2 = ref(name('e2'),
+                proto(obj(plus.new(num.new(1), num.new(2))),
+                      ref(obj(plus), name('plus'),
+                          {reversed:true})))
+
+  svg(above($e1, $e2))
+
+#+END_SRC
+
+[[file:img/show-invasive.svg]]
+
 ** Adding an operation as a module
 #+NAME: show
 #+BEGIN_SRC js
@@ -94,6 +287,31 @@ This extension is invasive: it modifies the prototypes of =num= and
   var s = show({num, plus});
   print(s.plus.new(s.num.new(1), s.num.new(2)).show());
 #+END_SRC
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  let s = show({num, plus});
+  let e3 = s.plus.new(s.num.new(1), s.num.new(2));
+
+  <<svg>>
+  redirect('img/show-module.svg')
+  let $s = ref(name('s'), obj(s));
+  let $e2 = ref(name('e2'), proto(obj(plus.new(num.new(1), num.new(2))),
+                                  ref(obj(plus), name('plus'), {reversed:true})));
+
+  let $e3 =  ref(name('e3'),
+                 proto(obj(e3),
+                       ref(obj(e3.__proto__),
+                           name('s.plus'), {reversed:true})));
+
+  let g = link($e2, $e3, {vertical:true, reversed:true, offset: 220});
+  svg(above($s, g))
+#+END_SRC
+
+[[file:img/show-module.svg]]
 
 Works, but can mix languages in unsafe ways:
 
@@ -129,6 +347,42 @@ Cannot mix languages anymore because of name shadowing: only one =num=
 and one =plus= is known in the body of =with=, and they are both from
 the same language.
 
+Inside =with=, here is what we see:
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  let s = show({num, plus});
+
+  <<svg>>
+  redirect('img/show-module-with.svg')
+  let $num = ref(name('num'), proto(obj(s.num), obj(s.num.__proto__)));
+  let $plus = ref(name('plus'), proto(obj(s.plus), obj(s.num.__proto__)));
+
+  svg(above($num, $plus))
+#+END_SRC
+
+[[file:img/show-module-with.svg]]
+
+Outside =with=, the =show= module is out of scope:
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+  <<show>>
+
+  <<svg>>
+  redirect('img/show-module-with-outside.svg')
+  let $num = ref(name('num'), obj(num));
+  let $plus = ref(name('plus'), obj(plus));
+
+  svg(above($num, $plus))
+#+END_SRC
+
+[[file:img/show-module-with-outside.svg]]
+
 *** Selective imports with an IIFE
 #+BEGIN_SRC js
   <<num>>
@@ -151,15 +405,92 @@ values of the scope object by assigning to them, but in the IIFE,
 assigning to the arguments has no effect outside the function.  In our
 two examples, we always pass a fresh module so there is no issue.
 
+** Modifying an operation
+#+BEGIN_SRC js
+<<num>>
+<<plus>>
+
+num.eval = function() { return this.n * 2 }
+
+print(num.new(1).eval())
+print(plus.new(num.new(1), num.new(2)).eval())
+#+END_SRC
+
+#+RESULTS:
+: 2
+: 6
+
+Previous version of =num.eval= is lost.
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+
+  <<svg>>
+  redirect('img/modify-num.svg')
+  var $e1 = ref(name('e1'),
+                proto(obj(num.new(1)),
+                      ref(box(['new', 'eval*']), name('num'),
+                          {reversed:true})))
+  svg($e1)
+#+END_SRC
+
+[[file:img/modify-num.svg]]
+
+*** Non-destructive modification
+#+NAME: double
+#+BEGIN_SRC js
+<<num>>
+<<plus>>
+
+var double = function(num_orig) {
+  var num = {__proto__: num_orig,
+    eval() { return num_orig.eval.call(this) * 2 }}
+  return {num}
+}
+#+END_SRC
+
+#+BEGIN_SRC js
+<<double>>
+
+with(double(num)) {
+  with(double(num)) {
+    print(plus.new(num.new(1), num.new(2)).eval())
+  }
+}
+#+END_SRC
+
+#+RESULTS:
+: 12
+
+Inside the inner-most =with=, the objects in scope are:
+
+#+BEGIN_SRC js :results silent
+  <<double>>
+
+  <<svg>>
+  redirect('img/modify-num-module.svg')
+  var $num = ref(name('num'),
+                proto(obj(double(double(num)).num),
+                      proto(obj(double(num).num),
+                            obj(num))))
+
+  var $plus = ref(name('plus'), obj(plus))
+
+  svg(above($num, $plus))
+#+END_SRC
+
+[[file:img/modify-num-module.svg]]
+
 * Discussion
-** Compatibility with other ways of constructing objects
+** TODO Compatibility with other ways of constructing objects
 Num.prototype.eval, at least.
 
-** Extending objects safely
+** TODO Extending objects safely
 How does that apply to built-in objects?  I tried to extend String,
 but I suspect that methods returning =this= are trouble.
 
-** Applicability to a pattern-matching decomposition
+** TODO Applicability to a pattern-matching decomposition
 
 ** Extensibility versus security
 Core insight: adding indirection via names.  Lexically-closing over a
@@ -188,7 +519,7 @@ More indirection = more flexibility, but also less readability,
 because the structure is now more complex.  Same goes for the
 =__proto__: this= trick of my object pattern.
 
-** Static typing
+** TODO Static typing
 I suspect that (simple) static typing is incompatible with
 intercession.  Just add types to the JS examples and see what problems
 arise?
@@ -224,6 +555,18 @@ Another instance of the extensibility/security spectrum: do you allow
 free names to bind dynamically?
 
 Here, one solution would be to bind the names as arguments to =f=.
+
+** It’s all a matter of names and scopes
+What names are in scope, either statically or dynamically, and what
+they refer to.  This is the crux of the issue.
+
+If names always refer to the same objects, statically or dynamically,
+then you have complete referential transparency, and full security.
+The program is easier to understand since names are not ambiguous.
+
+If names refer to some objects statically, then to others dynamically,
+then you have flexibility, at the price of a more complex system.
+Security is harder to guarantee.
 
 # Local Variables:
 # org-confirm-babel-evaluate: nil
