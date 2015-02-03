@@ -420,7 +420,8 @@ print(plus.new(num.new(1), num.new(2)).eval())
 : 2
 : 6
 
-Previous version of =num.eval= is lost.
+Previous version of =num.eval= is lost: we have no reference to it
+anymore.
 
 #+BEGIN_SRC js :results silent
   <<num>>
@@ -430,9 +431,12 @@ Previous version of =num.eval= is lost.
   redirect('img/modify-num.svg')
   var $e1 = ref(name('e1'),
                 proto(obj(num.new(1)),
-                      ref(box(['new', 'eval*']), name('num'),
+                      ref(box(['new', 'eval: this.n * 2']), name('num'),
                           {reversed:true})))
-  svg($e1)
+
+  var $prev = box(['new', 'eval: this.n'])
+
+  svg(above($e1, $prev))
 #+END_SRC
 
 [[file:img/modify-num.svg]]
@@ -463,17 +467,16 @@ with(double(num)) {
 #+RESULTS:
 : 12
 
-Inside the inner-most =with=, the objects in scope are:
+Inside the inner-most =with=, the objects in scope are the modified
+=num=, and the original =plus=.
 
 #+BEGIN_SRC js :results silent
-  <<double>>
-
   <<svg>>
   redirect('img/modify-num-module.svg')
   var $num = ref(name('num'),
-                proto(obj(double(double(num)).num),
-                      proto(obj(double(num).num),
-                            obj(num))))
+                proto(box(['eval: previous() * 2']),
+                      proto(box(['eval: previous() * 2']),
+                            box(['new', 'eval: this.n']))))
 
   var $plus = ref(name('plus'), obj(plus))
 
@@ -481,6 +484,138 @@ Inside the inner-most =with=, the objects in scope are:
 #+END_SRC
 
 [[file:img/modify-num-module.svg]]
+
+While after the =with=, =num= refers to the original, unmodified object.
+
+#+BEGIN_SRC js :results silent
+  <<plus>>
+  <<svg>>
+  redirect('img/modify-num-module-outside.svg')
+  var $num = ref(name('num'), box(['new', 'eval: this.n']))
+  var $plus = ref(name('plus'), obj(plus))
+
+  svg(above($num, $plus))
+#+END_SRC
+
+[[file:img/modify-num-module-outside.svg]]
+
+** Passing state
+Add a program counter incremented each time a data variant calls
+=eval=.
+
+#+NAME: state
+#+BEGIN_SRC js
+  var state = function(base, pc = 0) {
+    var num = {__proto__: base.num,
+               eval() { pc++; return base.num.eval.call(this) }}
+
+    var plus = {__proto__: base.plus,
+               eval() { pc++; return base.plus.eval.call(this) }}
+
+    var getPC = () => pc
+
+    return {num, plus, getPC}
+  }
+#+END_SRC
+
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<state>>
+
+  with (state({num, plus})) {
+    print(getPC())
+    print(plus.new(num.new(1), num.new(2)).eval())
+    print(getPC())
+  }
+#+END_SRC
+
+#+RESULTS:
+: 0
+: 3
+: 3
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+  <<state>>
+
+  var s = state({num,plus});
+
+  <<svg>>
+  redirect('img/state.svg')
+  var $getPC = ref(name('getPC'), box(['() => pc']))
+  var $num = ref(name('num'), proto(obj(s.num), obj(s.num.__proto__)))
+  var $plus = ref(name('plus'), proto(obj(s.plus), obj(s.plus.__proto__)))
+
+  svg(above($getPC, above($num, $plus)))
+#+END_SRC
+
+[[file:img/state.svg]]
+
+** All in one
+Combine all the extensions without effort.
+
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<show>>
+  <<state>>
+  <<double>>
+
+  with (state({num,plus})) {
+    with (double(num)) {
+      with (show({num,plus})) {
+        print(getPC())
+        let n = plus.new(num.new(1), num.new(2))
+        print(n.eval())
+        print(getPC())
+        print(n.show())
+      }}}
+#+END_SRC
+
+#+RESULTS:
+: 0
+: 6
+: 3
+: 1+2
+
+#+BEGIN_SRC js :results silent
+  <<num>>
+  <<plus>>
+  <<show>>
+  <<state>>
+  <<double>>
+
+  with (state({num,plus})) {
+    with (double(num)) {
+      with (show({num,plus})) {
+        var pc = getPC
+        var n = plus.new(num.new(1), num.new(2))
+      }}}
+
+    <<svg>>
+    redirect('img/all-in-one.svg')
+
+  var $getPC = ref(name('getPC'), box(['() => pc']))
+  var $nl = ref(name('n.l'),
+                proto(obj(n.l),
+                      proto(obj(n.l.__proto__),
+                            proto(box(['eval', '(from double)']),
+                                  proto(box(['eval', '(from state)']),
+                                        ref(obj(n.l.__proto__.__proto__.__proto__.__proto__), name('num'),
+                                            {reversed:true}))))))
+  var $n = ref(name('n'),
+               proto(obj(n),
+                     proto(obj(n.__proto__),
+                           proto(box(['eval', '(from state)']),
+                                 ref(obj(n.l.__proto__.__proto__.__proto__), name('plus'),
+                                     {reversed:true})))))
+
+  svg(above($getPC, above($n, $nl)))
+#+END_SRC
+
+[[file:img/all-in-one.svg]]
 
 * Discussion
 ** TODO Compatibility with other ways of constructing objects
