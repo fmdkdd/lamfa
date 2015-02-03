@@ -8,8 +8,8 @@
     if (typeof obj !== 'object') return obj.toString();
 
     let tagName = obj.t;
-    let attrs = Object.getOwnPropertyNames(obj.attrs).map((n) => attr(n, obj.attrs[n]));
-    let content = obj.children.map((o) => toMarkup(o, open, close, attr)).join('');
+    let attrs = Object.getOwnPropertyNames(obj.attrs).map(n => attr(n, obj.attrs[n]));
+    let content = obj.children.map(o => toMarkup(o, open, close, attr)).join('');
     return open(tagName, attrs) + content + close(tagName);
   }
 
@@ -32,7 +32,7 @@
                      'id', 'viewBox', 'refX', 'refY', 'markerUnits',
                      'markerWidth', 'markerHeight', 'orient',
                      'transform'];
-    shortcuts.forEach((s) => { o[s] = o.a.bind(o, s) });
+    shortcuts.forEach(s => { o[s] = o.a.bind(o, s) });
     return o;
   }
 
@@ -45,7 +45,7 @@
     let lineHeight = 18;
     let charWidth = 9;
 
-    let longest = names.map((p) => p.length).reduce((a,b) => Math.max(a,b), 0);
+    let longest = names.map(p => p.length).reduce((a,b) => Math.max(a,b), 0);
     let width = marginLeft + longest * charWidth + marginRight;
     let height = marginTop + marginBottom + lineHeight * names.length;
 
