@@ -654,6 +654,54 @@ More indirection = more flexibility, but also less readability,
 because the structure is now more complex.  Same goes for the
 =__proto__: this= trick of my object pattern.
 
+*** Lexical closures couple bindings at definition time (static)
+Consider the following definition of a constructor for binary trees.
+
+#+BEGIN_SRC js
+let node = (value, left, right) => ({value, left, right})
+let leaf = undefined
+let pp = ({value, left, right}) =>
+  `(${[value, (left ? pp(left) : ''), (right ? pp(right) : '')].join(' ').trim()})`
+
+let btree = d => d >= 0 ? node(d, btree(d-1), btree(d-1)) : leaf
+
+print(pp(btree(3)))
+#+END_SRC
+
+#+RESULTS:
+: (3 (2 (1 (0) (0)) (1 (0) (0))) (2 (1 (0) (0)) (1 (0) (0))))
+
+=btree= is conceptually independent of the implementation of =node=
+and =leaf=, but since it closes over these implementation lexically,
+=btree= is coupled to =node= and =leaf=.
+
+The alternative is to untie the bindings of =node= and =leaf= by
+adding them as parameters to =btree=.
+
+#+BEGIN_SRC js
+let btree = node => leaf => function btree1(d) {
+  return d >= 0 ? node(d, btree1(d-1), btree1(d-1)) : leaf }
+
+let node = (value, left, right) => ({value, left, right})
+let leaf = undefined
+let pp = ({value, left, right}) =>
+  `(${[value, (left ? pp(left) : ''), (right ? pp(right) : '')].join(' ').trim()})`
+
+print(pp(btree(node)(leaf)(3)))
+#+END_SRC
+
+#+RESULTS:
+: (3 (2 (1 (0) (0)) (1 (0) (0))) (2 (1 (0) (0)) (1 (0) (0))))
+
+Now we can actually use =btree= with any definition of =node= and
+=leaf=.  Note that the function returned by =btree(node)(leaf)= is
+identical to the =btree= of the previous example.  But in this
+example, we can delay the creation of the closure.  Still, once the
+closure =btree(node)(leaf)= is created, there is no way to change the
+bindings of =node= and =leaf= in further calls.  It’s not as flexible
+as dynamic scoping, but it’s also less surprising and more amenable to
+optimization.  A good compromise on the flexibility/security spectrum.
+
 ** TODO Static typing
 I suspect that (simple) static typing is incompatible with
 intercession.  Just add types to the JS examples and see what problems
