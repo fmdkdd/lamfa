@@ -618,6 +618,27 @@ Combine all the extensions without effort.
 [[file:img/all-in-one.svg]]
 
 * Discussion
+** EcmaScript 6 Modules
+We can use the module system of future versions of JS when scaling
+this scheme to multiple files.
+
+However, as of this writing, the module syntax does not seem to
+support parameterized modules, preventing the composition done in the
+=show=, =double= and =state= examples.
+
+As a workaround, we can import a /function/ and dynamically
+instantiate the module in the client files.
+
+#+BEGIN_SRC js
+import { _num } from "base"
+import { _plus } from "plus"
+import { show } from "show"
+let { num, plus } = show({num: _num, plus: _plus})
+#+END_SRC
+
+This requires some boilerplate code to handle the temporary bindings
+of =num= and =plus=.
+
 ** TODO Compatibility with other ways of constructing objects
 Num.prototype.eval, at least.
 
@@ -626,6 +647,8 @@ How does that apply to built-in objects?  I tried to extend String,
 but I suspect that methods returning =this= are trouble.
 
 ** TODO Applicability to a pattern-matching decomposition
+As presented in the second part of Odersky and Zenger.  Is this
+scheme strongly dependent of the decomposition chosen?
 
 ** Extensibility versus security
 Core insight: adding indirection via names.  Lexically-closing over a
