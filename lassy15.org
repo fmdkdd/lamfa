@@ -777,3 +777,19 @@ Security is harder to guarantee.
 # Local Variables:
 # org-confirm-babel-evaluate: nil
 # End:
+** An objection by Pierce and Harper
+Good points are made about modules in [[http://www.cis.upenn.edu/~bcpierce/papers/modules-icfp.ps][Advanced Module Systems]].  They
+conclude that /generic references/ are needed for flexibility (making
+a reference to /a/ module that respects the interface A, rather than
+/the/ module A), but that parameterization on modules (one way to
+achieve generic references) does not scale.
+
+What we exhibit in this document is parameterization on modules.  It
+is true that we are subject to scaling issues.  All modules depending
+on =show= must supply the appropriate =num= and =plus=.  Adding a
+dependency to =show= will cascade through all users of =show=.
+
+One mitigation would be to also provide default modules: if =show=
+requires modules =num= and =plus=, then when importing =show= without
+specifying modules will implicitly take the =num= and =plus= modules
+in the current scope.
