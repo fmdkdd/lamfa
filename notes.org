@@ -2319,8 +2319,6 @@ interpreter with faceted evaluation ... so you just duplicate, but in
 very a convoluted way.  The result would not be modular, and harder to
 understand than straightforward duplication.
 
-Otherwise in the current state, I have
-
 ** Opening `interp`
 Suggested by Rémi.
 
@@ -2725,6 +2723,127 @@ injectivity.  Namely, we can still add dead code that changes the
 syntax but not the semantics (switch `x1 += 1` and `x2 += 2`).  In
 effect, there are infinitely many programs that evaluates to the same
 value; the evaluation function is not injective.
+
+** Fundamentals of the expression problem
+We want to apply a function =f= on at least two different sets of
+values, A and B.  That is, we have in fact two functions f_A and f_B but
+we do not want to call them explicitly when dealing with a value of A
+or B, since it is clear from the context which is to be called.
+
+f_A(a) is redundant, and f(x) is clear enough from context if A and B
+are disjoint.
+
+How do we define such an =f= in programming languages?
+
+In a language with pattern matching like Haskell or OCaml, the
+straightforward way would be for =f= to hold the definitions of both
+f_A and f_B.
+
+#+BEGIN_EXAMPLE
+   +- a
+f -|
+   +- b
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+f x | x in A = ...
+    | x in B = ...
+#+END_EXAMPLE
+
+When the compiler encounters the call =f x=, if it knows that x is in
+A or B, it can replace f by the f_A or f_B appropriately.  If the type
+of x cannot be determined, then a runtime test can be inserted.
+
+In a language without pattern matching, you would use runtime tests
+anyway.
+
+#+BEGIN_EXAMPLE
+f = if (isA x) ...
+    elseif (USB x) ...
+#+END_EXAMPLE
+
+Runtime tests costs CPU time, but the predicate tests for set
+membership can be arbitrary; e.g., test if x is a prime.  Thus runtime
+tests can be more expressive than types.
+
+In a language with objects and dynamic dispatching, we would inverse
+the relationship between f and the sets A and B.  The definition of f
+is now split.
+
+#+BEGIN_EXAMPLE
+a
+|- f
+
+b
+|- f
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+a = object
+  method f = ...
+
+b = object
+  method f = ...
+#+END_EXAMPLE
+
+When the compiler encounters the call =x.f= (the notation is also
+inverted, suitably), it calls the method f on the object x.  Again, if
+it can be determined that x is an A, then f_A can be substituted for f
+(and respectively for B).
+
+At runtime, we can dispense of tests to know if a is an A or if b is a
+B; what matters is that x has the method f, regardless of its
+membership to a specific set.  If x is a prime, then it bears its own
+specific version of f, f_prime.
+
+The object decomposition has one definite benefit: the function f can
+be defined piece-wise, and can be extended indefinitely by just
+creating new objects which answer to the message ‘f’.
+
+These are two fundamentally opposed ways of approaching the problem.
+And yet, they share the need of imposing a hierarchy between values
+and functions.
+
+In the problem, we merely wanted to be able to say “f applied to
+members of A is f_A and f_B to members of B”.  A membership predicate
+allows us to support arbitrary-refined sets, as well as dispatching on
+more than one argument.  If we allow functions to be extended as well,
+then we get the full flexibility of both approaches.
+
+#+BEGIN_EXAMPLE
+f x | isA x = ...
+
+...
+
+f x | isB x = ...
+#+END_EXAMPLE
+
+Interestingly, since the definition of =f= is now split, we also lose
+some clarity when reading the code.  In JavaScript, there can only be
+one function definition with a given name, and all calls to this
+function will pass through the same function body.  It allows
+programmers to write their custom dispatching and pattern matching;
+those concerns are mixed, but at least the language is unsurprising.
+
+How do you go and implement that?  [[http://www.cs.washington.edu/research/projects/cecil/www/Gud/][Predicate dispatching]] from Ernst,
+Kaplan and Chambers seems like a good start.  It raises the issue of
+a possible ambiguity when resolving the predicates.
+
+If A and B are not disjoint, then what code is to be executed when f
+is applied to a member of A \cap B?  Non-determinism is a possible
+answer; it might be the case that, for such an x, we do not care which
+f runs, as both are valid.  However, we could also raise a runtime
+exception, stating that there is more than one candidate function.
+
+And there is also the problem of determining specificity.  If B \sub A,
+and x \in B, which version of f is executed by the call =f x=?
+Intuitively, we’d want the more specific; but for setting on such
+choices we should be guided by real-world examples.
+
+Ideally, we’d want to detect these errors statically, but if
+predicates are arbitrary, we cannot guarantee that.
+
+See also ad-hoc polymorphism.
 
 * Potentially related work
 GADTs? Type families? HList? Oliveira’s “Generics as a library” and
