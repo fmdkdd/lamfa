@@ -793,3 +793,68 @@ One mitigation would be to also provide default modules: if =show=
 requires modules =num= and =plus=, then when importing =show= without
 specifying modules will implicitly take the =num= and =plus= modules
 in the current scope.
+
+* Extension
+** Adding another variant after =show=
+If =show= is defined only for =num= and =plus=, but we define =minus=
+later, how do we add the =show= operation to =minus=?
+
+#+NAME: minus
+#+BEGIN_SRC js
+  var minus = {
+    new(n) { return {__proto__: this, n} }
+    ,eval() { return -this.n } }
+#+END_SRC
+
+#+NAME: show-minus
+#+BEGIN_SRC js
+  var show_minus = minus_orig => {
+    var minus = {__proto__: minus_orig
+                 ,show() { return (-this.n).toString() }}
+    return {minus}
+  }
+#+END_SRC
+
+#+BEGIN_SRC js
+  <<num>>
+  <<plus>>
+  <<show>>
+  <<minus>>
+  <<show-minus>>
+
+  with (show({num, plus})) {
+    with (show_minus(minus)) {
+      print(plus.new(num.new(1), num.new(2)).show())
+      print(plus.new(num.new(2), minus.new(1)).show()) }}
+#+END_SRC
+
+#+RESULTS:
+: 1+2
+: 2+-1
+
+*** Same goes for double/show
+
+#+NAME: double-show
+#+BEGIN_SRC js
+var double_show = (num_orig) => {
+  var num = {__proto__: num_orig,
+    show() { return (this.n * 2).toString() }}
+  return {num} }
+#+END_SRC
+
+#+BEGIN_SRC js
+<<num>>
+<<plus>>
+<<double>>
+<<show>>
+<<double-show>>
+
+with(double(num)) {
+  with(double(num)) {
+    with(show({num,plus})) {
+      with(double_show(num)) {
+        print(plus.new(num.new(1), num.new(2)).show()) }}}}
+#+END_SRC
+
+#+RESULTS:
+: 2+4
