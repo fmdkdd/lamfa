@@ -794,6 +794,294 @@ requires modules =num= and =plus=, then when importing =show= without
 specifying modules will implicitly take the =num= and =plus= modules
 in the current scope.
 
+** Reviews from FOAL’15 workshop
+*** Review 1
+This paper describes a pattern for implementing interpreters in
+JavaScript, such that instrumentation can be performed on them in a
+modular way, without having to change the interpreter code.
+
+Overall, the paper is well written and is easy to read. It provides a
+good introduction to the world of interpreter instrumentation.
+
+Reading through this paper I got the feeling it should end with a
+description of a refactored version of the Narcissus interpreter and a
+modular implementation of faceted evaluation. Instead, the paper ended
+with a discussion on what it should take to implement such
+artifacts. I guess this is OK for a workshop paper, but I would
+definitely encourage the authors to complete this.
+
+One thing that bothered me with the pattern described by the authors
+is in the central role the "with" keyword takes. The "with" keyword is
+powerful, as it allows users to modify the lexical scoping of a
+block. However, it is also deprecated. ES5 strict mode does not allow
+the use of "with", and this means code that uses "with" in the real
+world, lives on borrowed time. The main reason for that (according to
+Brendan Eich) is security (quoting his tweet on the subject):
+
+@angusTweets no, optimization is not the issue. with violates lexical
+scope, making program analysis (e.g. for security) hard to infeasible.
+
+Interestingly, security (and in particular, dynamic analysis) is the
+motivation behind this paper, so I wonder how well an interpreter
+designed using the pattern described in the paper would be successful
+analyzing its own code (it is, after all, metacircular).
+
+In Section 4, the authors claim that the dynamic typing in Javascript
+allowed the authors do things that would otherwise be "difficuls or
+even impossible to do". I tend to disagree. I've seen some heroic
+compositions done in languages such as Scala and Haskell. Unlike the
+original instrumentation, that modified the signature of methods, the
+pattern described in this paper only decorates functions and objects
+with additional functionality. When an extra parameter needs to flow
+down (such as the PC), it is done through a closure. The eval()
+method's signature was never changed. I would suggest that the authors
+lower the tone of this paragraph, only claiming it was easier this
+way.
+
+Some point of personal taste maybe, but I did not like the use of
+Mozilla-specific dialect in the code examples. They are unfamiliar to
+most readers (as developers are discouraged from using them due to
+compatibility issues), and may give the (wrong) impression that this
+pattern can only work in this dialect of JS. Although less elegant, I
+would suggest using standard EcmaScript for the code examples in the
+paper.
+
+*** Review 2
+This paper describes the instrumentation problem, which is an
+extension of the expression problem defined by Wadler.  They define
+four requirements for modular instrumentation of interpreters to
+implement dynamic analyses (modularity, intercession, local state, and
+pluggability).  The then look at a case study in the Narcissus
+interpreter by extending it support faceted evaluation.
+
+The authors explicitly state they don’t believe their approach works
+in a static typed language (like Java), due to the requirement of
+intercession.  This seems reasonable to argue.  They also state at the
+end they believe their approach would generalize to other JS
+interpreters, which again seems reasonable.  My question is do the
+authors think their approach generalizes to any other dynamically
+typed languages (say, Python)?  What is the exact set of features a
+language must contain in order for this approach to be applicable?
+The authors heavily hint at such features in Sec. 4 - I’d like to see
+it made more explicit.
+
+I do not believe the authors are quite correct in assuming that an AOP
+solution to the problem would suffer “performance penalties of dynamic
+weaving.”  Previous works have shown that simple caching mechanisms
+can avoid most overhead for dynamic weaving.
+
+Minor typos:
+- abstract: ‘of an an interpreter’
+- 3.1.2 pg 3 - ‘to print expression*S* instead of evaluating’
+- 4 pg 5 - last word - ‘we present here show*S*’
+
+** Rebuttal
+*** Should end with Narcissus instrumentation itself.
+Agree.  This is planned, but it would be hard anyway to give all the
+details in 6 pages.
+
+**** Action
+Future work.
+
+*** =with= is deprecated.
+Not quite.  Designers of ECMAScript have stated numerous times that
+future versions of the language are backward-compatible.  All the
+warts are here forever, including =with=.  It is true that =with= is
+disallowed in strict mode, but browsers implementing the ECMAScript
+standard should follow the /whole/ standard, not just strict mode.
+
+Besides, the paper gives an interesting use-case for =with=, proving
+that it’s not the useless and dangerous language feature that it’s
+often seen as.
+
+Anyway, an IIFE can serve the same purpose as =with=, with additional
+control (as shown at the end \sect3.1.2).  The syntax is just noisier.
+
+**** DONE Action
+state that the usage of =with= is not necessary, merely easier to read
+than IIFE.  And that it provides an interesting use-case for an often
+disregarded feature.
+
+*** =with= hampers analysis.
+Confusion.  =with= does indeed make static analysis hard, but it does
+not hamper dynamic analysis.
+
+**** Action
+None.
+
+*** Claiming that instrumentation would be impossible to type.
+Agree that it needs more justification.  Theoretically, it seems
+possible to type.  It can however be “heroic” to do so, as the
+reviewer points out.  Dynamic typing does not get in the way.
+
+**** DONE Action
+State that dynamic typing made it easier, as arbitrary intercession
+can became hairy to express in statically-typed languages.
+
+*** Mozilla-specific extensions are unfamiliar,
+and may give the (wrong) impression that we are using a non-standard
+JS.  Suggests using plain EcmaScript.
+
+Confusion.  No Mozilla-specific extensions, just EcmaScript 6 that is
+not implemented in every browser.  More readable, and you can get Ecma
+5 back with tools if you want.
+
+**** DONE Action
+In intro to \sect3, state that it’s standard we use only syntactic sugar
+constructs for their additional readability.
+
+*** Does the approach generalize to other dynamic languages?
+(e.g. Python).  List the exact features required.  Alluded in \sect4,
+could be more explicit.
+
+Heartily agree.
+
+**** TODO Action
+(Try to) list the exact language features, and based on that list
+state in which other languages it would be possible, and in which it
+might not be.
+
+*** AOP penalties could be easily overcame
+Don’t state what you don’t show?
+
+Agree.  Although this was the discussion section, the arguments lacked
+the facts for backing it up.
+
+**** DONE Action
+Focus on the use of simple features, do not assume that AOP would be
+costly without benchmarks.
+
+*** Typos
+- abstract: ‘of an an interpreter’
+- 3.1.2 pg 3 - ‘to print expression*S* instead of evaluating’
+- 4 pg 5 - last word - ‘we present here show*S*’
+
+**** DONE Action
+Correct.
+
+*** Can you do that with decorators?
+Reviewer #1 claim: “this pattern only decorates functions and objects
+with additional functionality”.
+
+Can we do that with decorators?  ES7 has a [[https://github.com/wycats/javascript-decorators][decorator proposal]]: a
+lightweight syntax addition that calls a function before setting a
+property on an object.
+
+#+BEGIN_SRC js
+class Person {
+  @readonly
+  name() { return `${this.first} ${this.last}` }
+}
+
+function readonly(target, name, descriptor) {
+  ...
+}
+#+END_SRC
+
+This desugars to:
+
+#+BEGIN_SRC js
+function Person() {}
+
+let descriptor = {
+  value: name() { return `${this.first} ${this.last}` },
+  enumerable: false,
+  configurable: true,
+  writable: true
+}
+
+descriptor = readonly(Person.prototype, 'name', descriptor) || descriptor
+Object.defineProperty(Person.prototype, 'name', descriptor)
+#+END_SRC
+
+So, in essence a decorator is syntactic sugar for wrapping a method.
+
+Let’s see if we can do that with =double=.
+
+#+BEGIN_SRC js
+var Num = function(n) { this.n = n }
+Num.prototype.eval = function() { return this.n }
+
+var e1 = new Num(3)
+print(e1.eval())
+
+// Decorator
+var double = function(f) {
+  return function() { return f.call(this) * 2 }}
+
+Num.prototype.eval = double(function() { return this.n })
+print(e1.eval())
+#+END_SRC
+
+#+RESULTS:
+: 3
+: 6
+
+With syntactic sugar, you would write the following.
+
+#+BEGIN_SRC js
+let double = function(_, _, f) {
+  return function() { return f.call(this) * 2 }}
+
+class Num
+  constructor(n) { this.n = n }
+
+  @double
+  eval() { return this.n }
+#+END_SRC
+
+So we can indeed view =double= as a decorator.  But this is only the
+/destructive/ version of =double=.  It is easier to read as the
+destruction is right next to the function definition.  However, the
+destructive variants are not the crux of our pattern; modules are.
+
+In the paper, we need to have both base variants and extensions
+available at runtime; that’s why we present non-destructive
+extensions.  The intent decorator is not to have two variants of a
+method co-existing, so that’s not the right mechanism for our task.
+
+If we wanted to have two variants with decorators, we would need to
+write the base class /twice/.
+
+#+BEGIN_SRC js
+class Num
+  constructor(n) { this.n = n }
+  eval() { return this.n }
+
+let double = function(_, _, f) {
+  return function() { return f.call(this) * 2 }}
+
+class Double
+  constructor(n) { this.n = n }
+
+  @double
+  eval() { return this.n }
+#+END_SRC
+
+And now this seems extremely convoluted to use a decorator instead of
+just defining =Double.eval= to return =n*2=.
+
+Our goal is to avoid duplication when making small changes to a base
+code, so this mechanism does not fit.
+
+If we think about it, we present decorators on /modules/ rather than
+on functions and objects.
+
+#+BEGIN_SRC js
+var double = function(base) {
+  var num = {__proto__: base.num,
+    eval() { return base.num.eval.call(this) * 2 }}
+
+  return {num} }
+#+END_SRC
+
+This =double= function takes a base =num= module, and returns a new
+one.  A decorator takes a function, and returns a new one with
+additional functionality (it should not change the signature of the
+function, or at least return a subtype of it).  But once again, we
+don’t want to erase the previous module; we want to have both the base
+and extension existing at runtime, so that we can switch between them.
+
 * Extension
 ** Adding another variant after =show=
 If =show= is defined only for =num= and =plus=, but we define =minus=
