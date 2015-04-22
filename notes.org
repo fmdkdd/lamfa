@@ -2014,6 +2014,65 @@ See [[file:hs/transform/notes.org]]
 - Extending the monadic stack is best done with scaffolding, though
   obliviousness is lost
 
+** Modular monadic interpreters
+*** The giants
+There’s a body of work on monadic interpreters in functional programming
+languages built around monads, dating from the ‘90s.
+
+Starting with Eugenio Moggi lectures at Edinburgh in 1990, then followed by
+Wadler, Steele, Hudak and Jones.
+
+- Eugenio Moggi.  An abstract view of programming languages. 1990
+- Philip Wadler.  The essence of functional programming. 1992
+- Guy Steele.  Building interpreters by composing monads. 1994
+- Sheng Liang, Paul Hudak, Mark Jones.  Monad Transformers and Modular
+  Interpreters. 1995
+- Luc Duponcheel.  Using catamorphisms, subtypes and monad transformers for
+  writing modular functional interpreters.  1995
+- David Spinoza.  Semantic Lego (thesis).  1995
+
+Then there is the, more recent, use of the free monad to build DSLs and
+interpreters in functional languages.  Swierstra reports that free monads were
+well-known in category theory, but unfamiliar to functional programmers.
+
+- Wouter Swierstra.  Data types à la carte.  2008
+- Tom Schrijvers, Bruno C.d.S. Oliveira.  Functional Pearl: The Monad Zipper.
+  2010
+- Oleg Kiselyov, Amr Sabry, Cameron Swords.  Extensible Effects -- An
+  Alternative to Monad Transformers.  2013
+- Rúnar Óli.  Compositional application architecture with reasonably-priced
+  monads (Scala Days talk).  2014
+
+On the other side of the fence, in OO-land, the go-to solution is a mix of
+modules and design patterns.
+
+- Robert Bruce Findler and Matthew Flatt.  Modular Object-Oriented Programming
+  with Units and Mixins.  1998
+- Bruno C.d.S. Oliveira.  Modular Visitor Components -- A practical Solution to
+  the Expression Families Problem.  2009
+- Brudo C.d.S. Oliveira, William R. Cook.  Extensibility for the Masses --
+  Practical Extensibility with Object Algebras.  2012
+
+*** The bigger picture
+In the solutions from the functional programming world, the idea seems to
+revolve around reifying the computation (the target program of an interpreter),
+and write different interpreters.  In other words, to achieve modularity, one
+must turn behavior into data: data has no effect unless it is executed by some
+interpreter and turned into an actual computation.
+
+So, essentially we are writing programs in a DSL of which we know one
+interpreter (hopefully).  This is high-level, programming the specification.
+Then we are free to write other interpreters for the same program, to change its
+meaning slightly.
+
+The connection to DSLs of course brings works from other communities to the
+table.
+
+Viewing the interpreter as data is something that is free in Lisps.  The code
+can always be seen as a data structure that is easily parsed.  If turning your
+code to data gives you the greatest modularity, then homoiconic languages have
+a clear advantage of not requiring a parser.
+
 * Discussion
 In object-oriented languages, we would have used the mechanisms of
 inheritance and overriding (with the keyword =super=) to solve this
