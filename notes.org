@@ -2005,6 +2005,29 @@ Cons:
 - Cannot change the resulting value with using the same approach for
   the value type, which would be even /hairier/.
 
+**** Data types  à la carte (2015)
+Re-reading Swiestra in 2015, my brain parses it much better.
+
+- Coproduct is just disjoint-union.
+- Construction of values of the coproduct type are unwieldy, hence the recourse
+  to type classes that will automatically call the right injection into the
+  coproduct based on the type of the expression.  Expression types are required,
+  otherwise the compiler cannot find the right injection.
+
+  The use class constraints and instances to automatically figure out the right
+  injection is quite clever.
+- Can’t we derive functors, for the coproduct, since they seem rather
+  straightforward?  We can.  Probably `deriving Functor` was not available in
+  Haskell in 2008, when Swierstra wrote it.
+- We can give a larger type signature than necessary, since the compiler cannot
+  infer it for us.  =Add :+: Val :+: Add :+: Val= is perfectly acceptable.  In
+  practice, this is harmless.
+- While we can easily extend the language and compose languages using this
+  approach, modifying behavior requires defining a new algebra.  Can we re-use
+  parts of a previous algebra?  There is no clue as to how to achieve that in
+  this paper.
+
+
 *** Extending the syntax
 See [[file:hs/transform/notes.org]]
 
