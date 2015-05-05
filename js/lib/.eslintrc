@@ -1,0 +1,15 @@
+{
+  "env": {
+    "node": true
+  },
+
+  "rules": {
+    "quotes": [1, "single", "avoid-escape"],
+    "curly": 1,
+    "strict": 1,
+    "no-unused-vars": 1,
+    "no-eval": 1,
+    "no-use-before-define": 1,
+    "camelcase": 0
+  }
+}
