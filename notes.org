@@ -2031,6 +2031,14 @@ Re-reading Swiestra in 2015, my brain parses it much better.
   will never modify the value of the memory cell.  Also the topic of \sect7, and
   related work on type systems for effects.
 
+**** Implicit arguments
+A simple idea: implicit arguments can replace global variables.
+
+Unfortunately, describing an override of the base eval function is still an
+issue.  Maybe use type classes?
+
+See [[file:hs/implicit][implicit]].
+
 
 *** Extending the syntax
 See [[file:hs/transform/notes.org]]
