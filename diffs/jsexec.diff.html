@@ -1,0 +1,1986 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>huge.diff</title>
+<meta name="generator" content="emacs 24.3.1; htmlfontify 0.21" />
+<style type="text/css"><!--
+body { font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.default   { font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.default a { font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  background: #fdf6e3;  font-size: 12pt;  text-decoration: underline; }
+span.diff-removed   { color: #dc322f;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.diff-removed a { color: #dc322f;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: underline; }
+span.diff-indicator-removed   { color: #dc322f;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.diff-indicator-removed a { color: #dc322f;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: underline; }
+span.diff-added   { color: #859900;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.diff-added a { color: #859900;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: underline; }
+span.diff-indicator-added   { color: #859900;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.diff-indicator-added a { color: #859900;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: underline; }
+span.diff-hunk-header   { background: #fdf6e3;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  font-size: 12pt;  text-decoration: none; }
+span.diff-hunk-header a { background: #fdf6e3;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  font-size: 12pt;  text-decoration: underline; }
+span.diff-file-header   { font-weight: 700;  color: #657b83;  background: #fdf6e3;  font-family: Ubuntu Mono;  font-stretch: normal;  font-style: normal;  font-size: 12pt;  text-decoration: none; }
+span.diff-file-header a { font-weight: 700;  color: #657b83;  background: #fdf6e3;  font-family: Ubuntu Mono;  font-stretch: normal;  font-style: normal;  font-size: 12pt;  text-decoration: underline; }
+span.diff-header   { background: #fdf6e3;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  font-size: 12pt;  text-decoration: none; }
+span.diff-header a { background: #fdf6e3;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  color: #657b83;  font-size: 12pt;  text-decoration: underline; }
+span.diff-context   { color: #93a1a1;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: none; }
+span.diff-context a { color: #93a1a1;  font-family: Ubuntu Mono;  font-stretch: normal;  font-weight: 500;  font-style: normal;  background: #fdf6e3;  font-size: 12pt;  text-decoration: underline; }
+ --></style>
+
+    <script type="text/javascript"><!--
+  // this function is needed to work around
+  // a bug in IE related to element attributes
+  function hasClass(obj)
+  {
+      var result = false;
+      if (obj.getAttributeNode("class") != null)
+      {
+          result = obj.getAttributeNode("class").value;
+      }
+      return result;
+  }
+
+  function stripe(id)
+  {
+      // the flag we'll use to keep track of
+      // whether the current row is odd or even
+      var even = false;
+
+      // if arguments are provided to specify the colors
+      // of the even & odd rows, then use the them;
+      // otherwise use the following defaults:
+      var evenColor = arguments[1] ? arguments[1] : "#fff";
+      var oddColor  = arguments[2] ? arguments[2] : "#ddd";
+
+      // obtain a reference to the desired table
+      // if no such table exists, abort
+      var table = document.getElementById(id);
+      if (! table) { return; }
+
+      // by definition, tables can have more than one tbody
+      // element, so we'll have to get the list of child
+      // &lt;tbody&gt;s
+      var tbodies = table.getElementsByTagName("tbody");
+
+      // and iterate through them...
+      for (var h = 0; h < tbodies.length; h++)
+      {
+          // find all the &lt;tr&gt; elements...
+          var trs = tbodies[h].getElementsByTagName("tr");
+
+          // ... and iterate through them
+          for (var i = 0; i < trs.length; i++)
+          {
+              // avoid rows that have a class attribute
+              // or backgroundColor style
+              if (! hasClass(trs[i]) &&
+                  ! trs[i].style.backgroundColor)
+              {
+                  // get all the cells in this row...
+                  var tds = trs[i].getElementsByTagName("td");
+
+                  // and iterate through them...
+                  for (var j = 0; j < tds.length; j++)
+                  {
+                      var mytd = tds[j];
+
+                      // avoid cells that have a class attribute
+                      // or backgroundColor style
+                      if (! hasClass(mytd) &&
+                          ! mytd.style.backgroundColor)
+                      {
+                          mytd.style.backgroundColor =
+                            even ? evenColor : oddColor;
+                      }
+                  }
+              }
+              // flip from odd to even, or vice-versa
+              even =  ! even;
+          }
+      }
+  }
+
+  function toggle_invis( name )
+  {
+      var filter =
+        { acceptNode:
+          function( node )
+          { var classname = node.id;
+            if( classname )
+            { var classbase = classname.substr( 0, name.length );
+              if( classbase == name ) { return NodeFilter.FILTER_ACCEPT; } }
+            return NodeFilter.FILTER_SKIP; } };
+      var walker = document.createTreeWalker( document.body           ,
+                                              NodeFilter.SHOW_ELEMENT ,
+                                              filter                  ,
+                                              false                   );
+      while( walker.nextNode() )
+      {
+          var e = walker.currentNode;
+          if( e.style.display == "none" ) { e.style.display = "inline"; }
+          else                            { e.style.display = "none";   }
+      }
+  }
+--> </script>
+  </head>
+  <body onload="stripe('index'); return true;">
+
+<pre><span class="diff-context">diff --git a/../narcissus/lib/jsexec.js b/zaphod/chrome/content/narcissus/jsexec.js
+index 163bd83..21d56ba 100644
+</span><span class="diff-header">--- </span><span class="diff-file-header">a/../narcissus/lib/jsexec.js</span><span class="diff-header">
++++ </span><span class="diff-file-header">b/zaphod/chrome/content/narcissus/jsexec.js</span><span class="diff-header">
+</span><span class="diff-hunk-header">@@ -57,1427 +57,1634 @@</span>
+<span class="diff-context"> Narcissus.interpreter = (function() {
+
+     var parser = Narcissus.parser;
+     var definitions = Narcissus.definitions;
+     var resolver = Narcissus.resolver;
+     var hostGlobal = Narcissus.hostGlobal;
+     var desugaring = Narcissus.desugaring;
+
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    // Faceted Value utilities
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var FacetedValue = Zaphod.facets.FacetedValue;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var ProgramCounter = Zaphod.facets.ProgramCounter;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var Label = Zaphod.facets.Label;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var buildVal = Zaphod.facets.buildVal;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var evaluateEach = Zaphod.facets.evaluateEach;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var evaluateEachPair = Zaphod.facets.evaluateEachPair;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var strip = Zaphod.facets.strip;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var rebuild = Zaphod.facets.rebuild;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-context">     // Set constants in the local scope.
+     eval(definitions.consts);
+
+     const StringMap = definitions.StringMap;
+     const ObjectMap = definitions.ObjectMap;
+     const StaticEnv = resolver.StaticEnv;
+     const Def = resolver.Def;
+
+     const GLOBAL_CODE = 0, EVAL_CODE = 1, FUNCTION_CODE = 2, MODULE_CODE = 3;
+
+     // Control flow signals
+     const BREAK_SIGNAL = {},
+           CONTINUE_SIGNAL = {},
+           RETURN_SIGNAL = {},
+           END_SIGNAL = {};
+
+     function isSignal(s) {
+         if (s === BREAK_SIGNAL) return true;
+         if (s === CONTINUE_SIGNAL) return true;
+         if (s === RETURN_SIGNAL) return true;
+         if (s === END_SIGNAL) return true;
+         return false;
+     }
+
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">    function ExecutionContext(type, version) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function ExecutionContext(type, pc, version) {
+</span><span class="diff-context">         this.type = type;
+         this.version = version;
+         // In Harmony, the global scope record is not exposed to the program.
+         if (type === GLOBAL_CODE &amp;&amp; version === &quot;harmony&quot;) {
+             this.scope = {object: globalScope, parent: null};
+             this.thisObject = globalMirror;
+         }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        this.pc = pc;
+</span><span class="diff-context">     }
+
+     function isStackOverflow(e) {
+         var re = /InternalError: (script stack space quota is exhausted|too much recursion)/;
+         return re.test(e.toString());
+     }
+
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function getPC() {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var x = ExecutionContext.current;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        return x ? x.pc : new ProgramCounter();;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-context">     // The underlying global object for narcissus.
+     var globalBase = {
+         // Value properties.
+         NaN: NaN, Infinity: Infinity, undefined: undefined,
+
+         // Function properties.
+         eval: function eval(s) {
+             if (typeof s !== &quot;string&quot;)
+                 return s;
+
+             var x = ExecutionContext.current;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            var x2 = new ExecutionContext(EVAL_CODE, x.version);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var x2 = new ExecutionContext(EVAL_CODE, x.pc, x.version);
+</span><span class="diff-context">             x2.thisObject = x.thisObject;
+             x2.thisModule = x.thisModule;
+             x2.caller = x.caller;
+             x2.callee = x.callee;
+             x2.scope = x.version === &quot;harmony&quot; ? { object: new Object, parent: x.scope } : x.scope;
+
+             var ast = parser.parse(s);
+             if (x.version === &quot;harmony&quot;) {
+                 resolver.resolve(ast, new StaticEnv(x.staticEnv));
+                 instantiateModules(ast, x2.scope);
+             }
+             x2.execute(ast);
+             return x2.result;
+         },
+
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // Displays only high alerts (assumes a simple hi/lo lattice
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        alert: function(msg){
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            let pc = getPC();
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            if (pc.containsStr('h') || pc.isEmpty())
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                alert(msg);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            else
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                Zaphod.log('Suppressed unauthorized alert pc:' + pc + ' msg: &quot;' + msg + '&quot;');
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        exportValue: function(fv) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            let v = (fv instanceof FacetedValue) ? fv.unauthorized : fv;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            alert('Attacker sees &quot;' + v + '&quot;');
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-context">         // Class constructors.  Where ECMA-262 requires C.length === 1, we declare
+         // a dummy formal parameter.
+         Function: function Function(dummy) {
+             var p = &quot;&quot;, b = &quot;&quot;, n = arguments.length;
+             if (n) {
+                 var m = n - 1;
+                 if (m) {
+                     p += arguments[0];
+                     for (var k = 1; k &lt; m; k++)
+                         p += &quot;,&quot; + arguments[k];
+                 }
+                 b += arguments[m];
+             }
+
+             // XXX We want to pass a good file and line to the tokenizer.
+             // Note the anonymous name to maintain parity with Spidermonkey.
+             var t = new parser.Tokenizer(&quot;anonymous(&quot; + p + &quot;) {&quot; + b + &quot;}&quot;);
+
+             // NB: Use the STATEMENT_FORM constant since we don't want to push this
+             // function onto the fake compilation context.
+             var f = parser.FunctionDefinition(t, null, false, parser.STATEMENT_FORM);
+             var s = {object: global, parent: null};
+             return newFunction(f,{scope:s});
+         },
+         Array: function (dummy) {
+             // Array when called as a function acts as a constructor.
+             return Array.apply(this, arguments);
+         },
+         String: function String(s) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            // Called as function or constructor: convert argument to string type.
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            s = arguments.length ? &quot;&quot; + s : &quot;&quot;;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var argSpecified = arguments.length;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var newStr = evaluateEach(s, function(s,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                // Called as function or constructor: convert argument to string type.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return (argSpecified ? &quot;&quot; + s : &quot;&quot;);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, ExecutionContext.current);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-context">             if (this instanceof String) {
+                 // Called as constructor: save the argument as the string value
+                 // of this String object and return this object.
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                this.value = s;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                this.value = newStr;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                var strlen = evaluateEach(newStr, function(s,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    // Called as function or constructor: convert argument to string type.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return s ? s.length : 0;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }, ExecutionContext.current);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                definitions.defineProperty(this, 'length', strlen, true,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        true, true);
+</span><span class="diff-context">                 return this;
+             }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            return s;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            else return newStr;
+</span><span class="diff-context">         },
+
+         // Don't want to proxy RegExp or some features won't work
+         RegExp: RegExp,
+
+         // Extensions to ECMA.
+         load: function load(s) {
+             if (typeof s !== &quot;string&quot;)
+                 return s;
+
+             evaluate(snarf(s), s, 1)
+         },
+         version: function() { return ExecutionContext.current.version; },
+         quit: function() { throw END_SIGNAL; },
+         assertEq: function() {
+             return assertEq.apply(null, arguments);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        cloak: function(v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // In Zaphod, sticking with a 2-element lattice
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return Zaphod.facets.cloak(v,'h');
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        isFacetedValue: function(v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return (v instanceof FacetedValue);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // A view is represented as a program counter,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // except that all labels can only be 'positive'.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // If a label is not explicitly in the view,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // the viewer sees the unauthorized view.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        getView: Zaphod.facets.getView,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        getAuth: function(v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return Zaphod.facets.getView(v,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    new ProgramCounter(new Label('h')));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        getUnAuth: function(v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return Zaphod.facets.getView(v,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    new ProgramCounter((new Label('h')).reverse()));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        },
+</span><span class="diff-context">     };
+
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    // Load missing functions onto Array and String
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    [&quot;concat&quot;, &quot;every&quot;, &quot;foreach&quot;, &quot;isArray&quot;, &quot;join&quot;, &quot;map&quot;, &quot;push&quot;, &quot;pop&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        &quot;reverse&quot;, &quot;reduce&quot;, &quot;shift&quot;, &quot;slice&quot;, &quot;sort&quot;, &quot;splice&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        &quot;toLocalString&quot;, &quot;unshift&quot;].forEach(function(fName) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            definitions.defineProperty(globalBase.Array, fName, Array[fName], false,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                false, true);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        });
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    //[&quot;charAt&quot;, &quot;charCodeAt&quot;, &quot;concat&quot;, &quot;fromCharCode&quot;, &quot;indexOf&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    [&quot;concat&quot;, &quot;indexOf&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        &quot;lastIndexOf&quot;, &quot;localeCompare&quot;, &quot;match&quot;, &quot;replace&quot;, &quot;search&quot;, &quot;slice&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        &quot;split&quot;, &quot;substring&quot;, &quot;toLowerCase&quot;, &quot;toUpperCase&quot;, &quot;trim&quot;, &quot;valueOf&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        //HTML methods
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        &quot;big&quot;, &quot;blink&quot;, &quot;bold&quot;, &quot;fixed&quot;, &quot;fontcolor&quot;, &quot;fontsize&quot;, &quot;italics&quot;,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        &quot;link&quot;, &quot;small&quot;, &quot;strike&quot;, &quot;sub&quot;, &quot;sup&quot;].forEach(function(fName) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            definitions.defineProperty(globalBase.String, fName, String[fName], false,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                false, true);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        });
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var oldFCC = String.fromCharCode;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    globalBase.String.fromCharCode = function(v1,v2) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        x = ExecutionContext.current;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        return evaluateEachPair(v1, v2, function(v1,v2,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (v2) return oldFCC(v1,v2);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                else return oldFCC(v1);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    };
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    // Operators
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    var ops = {};
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[BITWISE_OR] = '|';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[BITWISE_XOR] = '^';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[BITWISE_AND] = '&amp;';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[EQ] = '==';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[NE] = '!=';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[STRICT_EQ] = '===';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[STRICT_NE] = '!==';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[LT] = '&lt;';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[LE] = '&lt;=';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[GE] = '&gt;=';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[GT] = '&gt;';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[IN] = 'in';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[LSH] = '&lt;&lt;';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[RSH] = '&gt;&gt;';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[URSH] = '&gt;&gt;&gt;';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[PLUS] = '+';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[MINUS] = '-';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[MUL] = '*';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[DIV] = '/';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[MOD] = '%';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[NOT] = '!';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[BITWISE_NOT] = '~';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[UNARY_PLUS] = '+';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    ops[UNARY_MINUS] = '-';
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function evalUnaryOp(c, x, op) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var v = getValue(execute(c[0], x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        return evaluateEach(v, function(v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return eval(ops[op] + &quot;v&quot;);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function evalBinOp(v1, v2, x, op) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        return evaluateEachPair(v1, v2, function(v1, v2) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return eval('v1' + op + 'v2');
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-context">     function wrapNative(name, val) {
+         if (!definitions.isNativeCode(val))
+             return val;
+         return Proxy.createFunction(
+             definitions.makePassthruHandler(val),
+             function() { return val.apply(hostGlobal, arguments); },
+             function() {
+                 var a = arguments;
+                 switch (a.length) {
+                   case 0:
+                     return new val();
+                   case 1:
+                     return new val(a[0]);
+                   case 2:
+                     return new val(a[0], a[1]);
+                   case 3:
+                     return new val(a[0], a[1], a[2]);
+                   default:
+                     var argStr = &quot;&quot;;
+                     for (var i = 0; i &lt; a.length; i++)
+                         argStr += 'a[' + i + '],';
+                     return eval('new ' + name + '(' + argStr.slice(0,-1) + ');');
+                 }
+             });
+     }
+
+     var hostHandler = definitions.blacklistHandler(hostGlobal,
+         Narcissus.options.hiddenHostGlobals);
+     var hostHandlerGet = hostHandler.get;
+     hostHandler.get = function(receiver, name) {
+         return wrapNative(name, hostHandlerGet(receiver, name));
+     };
+     var hostProxy = Proxy.create(hostHandler);
+
+     var globalStaticEnv;                       // global static scope
+     var moduleInstances = new ObjectMap();     // maps module instance objects -&gt; module instances
+     var global = Object.create(hostProxy, {}); // exposed global object (legacy)
+
+     // unexposed global scope record (Harmony)
+     var globalScope = Object.create(hostProxy, {});
+
+     // exposed global scope mirror (Harmony)
+     var globalMirror = Proxy.create(definitions.mirrorHandler(globalScope, true));
+
+     function resetEnvironment() {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        ExecutionContext.current = new ExecutionContext(GLOBAL_CODE, Narcissus.options.version);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        ExecutionContext.current = new ExecutionContext(GLOBAL_CODE,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                new ProgramCounter(), Narcissus.options.version);
+</span><span class="diff-context">         let names = Object.getOwnPropertyNames(global);
+         for (let i = 0, n = names.length; i &lt; n; i++) {
+             delete global[names[i]];
+         }
+         for (let key in globalScope) {
+             delete globalScope[key];
+         }
+         moduleInstances.clear();
+         globalStaticEnv = new StaticEnv();
+
+         let names = Object.getOwnPropertyNames(hostProxy);
+         for (let i = 0, n = names.length; i &lt; n; i++) {
+             globalStaticEnv.bind(names[i], new Def());
+         }
+         for (let key in globalBase) {
+             let val = globalBase[key];
+             global[key] = val;
+             globalScope[key] = val;
+             // NB: this assumes globalBase never contains module or import bindings
+             globalStaticEnv.bind(key, new Def());
+         }
+     }
+     resetEnvironment();
+
+     // Helper to avoid Object.prototype.hasOwnProperty polluting scope objects.
+     function hasDirectProperty(o, p) {
+         return Object.prototype.hasOwnProperty.call(o, p);
+     }
+
+     // Reflect a host class into the target global environment by delegation.
+     function reflectClass(name, proto) {
+         var gctor = global[name];
+         definitions.defineProperty(gctor, &quot;prototype&quot;, proto, true, true, true);
+         definitions.defineProperty(proto, &quot;constructor&quot;, gctor, false, false, true);
+         return proto;
+     }
+
+     // Reflect Array -- note that all Array methods are generic.
+     reflectClass('Array', new Array);
+
+     // Reflect String, overriding non-generic methods.
+     var gSp = reflectClass('String', new String);
+     gSp.toSource = function () { return this.value.toSource(); };
+     gSp.toString = function () { return this.value; };
+     gSp.valueOf  = function () { return this.value; };
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">    global.String.fromCharCode = String.fromCharCode;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    //global.String.fromCharCode = String.fromCharCode;
+</span><span class="diff-context">
+     ExecutionContext.current = null;
+
+     ExecutionContext.prototype = {
+         caller: null,
+         callee: null,
+         scope: {object: global, parent: null},
+         thisObject: global,
+         thisModule: null,
+         result: undefined,
+         target: null,
+         ecma3OnlyMode: false,
+
+         // Execute a node in this execution context.
+         execute: function(n) {
+             var prev = ExecutionContext.current;
+             ExecutionContext.current = this;
+             try {
+                 execute(n, this);
+             } finally {
+                 ExecutionContext.current = prev;
+             }
+         }
+     };
+
+     function Reference(base, propertyName, node) {
+         this.base = base;
+         this.propertyName = propertyName;
+         this.node = node;
+     }
+
+     Reference.prototype.toString = function () { return this.node.getSource(); }
+
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">    function getValue(v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function derefFacetedValue(v, pc) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var k = v.label,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            auth = v.authorized,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            unauth = v.unauthorized;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        if (pc.contains(k)) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return getValue(auth, pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        else if (pc.contains(k.reverse())) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return getValue(unauth, pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        else {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return buildVal(new ProgramCounter(k),
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                            getValue(auth, pc.join(k)),
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                            getValue(unauth, pc.join(k.reverse())));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function getValue(v, pc) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        if (v instanceof FacetedValue) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return derefFacetedValue(v, pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-context">         if (v instanceof Reference) {
+             if (!v.base) {
+                 // Hook needed for Zaphod
+                 if (Narcissus.interpreter.getValueHook)
+                     return Narcissus.interpreter.getValueHook(v.propertyName);
+                 throw new ReferenceError(v.propertyName + &quot; is not defined&quot;,
+                                          v.node.filename, v.node.lineno);
+             }
+             return v.base[v.propertyName];
+         }
+         return v;
+     }
+
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">    function putValue(v, w, vn) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        if (v instanceof Reference)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            return (v.base || global)[v.propertyName] = w;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">    function putValue(v, w, vn, pc) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        if (v instanceof FacetedValue) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // x is not really an execution environment, but is being used a
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // way of passing on data.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return evaluateEachPair(v, w, function(ref, val, x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return putValue(ref, val, x.vn, x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, {pc: pc, vn: vn});
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        else if (v instanceof Reference) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            //return (v.base || global)[v.propertyName] = w;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var base = v.base || global;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var oldVal = base[v.propertyName];
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var newVal = base[v.propertyName] = buildVal(pc, w, oldVal);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // The returned value should be the local version, not the stored
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // version.  Within a block, the extra labels are not needed and
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // are simply wasteful.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            return w;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-context">         throw new ReferenceError(&quot;Invalid assignment left-hand side&quot;,
+                                  vn.filename, vn.lineno);
+     }
+
+     function isPrimitive(v) {
+         var t = typeof v;
+         return (t === &quot;object&quot;) ? v === null : t !== &quot;function&quot;;
+     }
+
+     function isObject(v) {
+         var t = typeof v;
+         return (t === &quot;object&quot;) ? v !== null : t === &quot;function&quot;;
+     }
+
+     // If r instanceof Reference, v === getValue(r); else v === r.  If passed, rn
+     // is the node whose execute result was r.
+     function toObject(v, r, rn) {
+         switch (typeof v) {
+           case &quot;boolean&quot;:
+             return new global.Boolean(v);
+           case &quot;number&quot;:
+             return new global.Number(v);
+           case &quot;string&quot;:
+             return new global.String(v);
+           case &quot;function&quot;:
+             return v;
+           case &quot;object&quot;:
+             if (v !== null)
+                 return v;
+         }
+         var message = r + &quot; (type &quot; + (typeof v) + &quot;) has no properties&quot;;
+         throw rn ? new TypeError(message, rn.filename, rn.lineno)
+                  : new TypeError(message);
+     }
+
+     // reifyModule :: (Module) -&gt; module instance object
+     function reifyModule(mod) {
+         return mod.instance.proxy;
+     }
+
+     function bindImports(impDecls, x) {
+         for (var i = 0; i &lt; impDecls.length; i++) {
+             var list = impDecls[i].pathList;
+             for (var j = 0; j &lt; list.length; j++) {
+                 bindImport(list[j], x);
+             }
+         }
+     }
+
+     function bindImport(decl, x) {
+         var t = x.scope.object;
+         var lhs = decl.children[0];
+         var rhs = decl.children[1];
+         var mod = lhs.denotedModule;
+
+         function bind(importID, exportID) {
+             definitions.defineGetter(t, importID, function() {
+                 var m = reifyModule(mod);
+                 return m[exportID];
+             }, true);
+         }
+
+         if (rhs.type === IDENTIFIER) {
+             if (rhs.value === &quot;*&quot;) {
+                 mod.exports.forEach(function(exportID, exp) {
+                     if (!mod.exportedModules.has(exportID))
+                         bind(exportID, exportID);
+                 });
+             } else {
+                 bind(rhs.value, rhs.value);
+             }
+             return;
+         }
+
+         for (var i = 0; i &lt; rhs.children.length; i++) {
+             var pair = rhs.children[i];
+             bind(pair.children[1].value, pair.children[0].value);
+         }
+     }
+
+     function executeModule(n, x) {
+         var m = x.scope.object[n.name];
+         var inst = moduleInstances.get(m);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        var x2 = new ExecutionContext(MODULE_CODE, x.version);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var x2 = new ExecutionContext(MODULE_CODE, x.pc, x.version);
+</span><span class="diff-context">         x2.scope = inst.scope;
+         x2.thisObject = m;
+         x2.thisModule = m;
+         x2.execute(n.body);
+         return m;
+     }
+
+     function execute(n, x) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        var a, c, f, i, j, r, s, t, u, v;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        //try{
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var a, c, f, i, j, r, s, t, u, v, v1, v2;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // Store the original pc
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var pc = x.pc;
+</span><span class="diff-context">
+         switch (n.type) {
+           case MODULE:
+             if (n.body)
+                 x.result = executeModule(n, x);
+             break;
+
+           case IMPORT:
+           case EXPORT:
+             break;
+
+           case FUNCTION:
+             if (n.functionForm !== parser.DECLARED_FORM) {
+                 if (!n.name || n.functionForm === parser.STATEMENT_FORM) {
+                     v = newFunction(n, x);
+                     if (n.functionForm === parser.STATEMENT_FORM)
+                         definitions.defineProperty(x.scope.object, n.name, v, true);
+                 } else {
+                     t = new Object;
+                     x.scope = {object: t, parent: x.scope};
+                     try {
+                         v = newFunction(n, x);
+                         definitions.defineProperty(t, n.name, v, true, true);
+                     } finally {
+                         x.scope = x.scope.parent;
+                     }
+                 }
+             }
+             break;
+
+           case SCRIPT:
+             t = x.scope.object;
+             n.modAssns.forEach(function(name, node) {
+                 definitions.defineMemoGetter(t, name, function() {
+                     return reifyModule(node.initializer.denotedModule);
+                 }, true);
+             });
+             bindImports(n.impDecls, x);
+             a = n.funDecls;
+             for (i = 0, j = a.length; i &lt; j; i++) {
+                 s = a[i].name;
+                 f = newFunction(a[i], x);
+                 // ECMA-262 says variable bindings created by `eval' are deleteable.
+                 definitions.defineProperty(t, s, f, x.type !== EVAL_CODE);
+             }
+             a = n.varDecls;
+             var defineVar;
+             if (x.thisModule) {
+                 defineVar = function(obj, prop) {
+                     // start out as a getter/setter that throws on get
+                     definitions.defineGetterSetter(obj, prop, function() {
+                         throw new ReferenceError(prop + &quot; is not initialized&quot;);
+                     }, function(val) {
+                         // on first set, replace with ordinary property
+                         definitions.defineProperty(obj, prop, val, false);
+                         return val;
+                     }, false);
+                 };
+             } else {
+                 defineVar = function(obj, prop) {
+                     // ECMA-262 says variable bindings created by `eval' are deleteable.
+                     definitions.defineProperty(obj, prop, undefined, x.type !== EVAL_CODE, false);
+                 };
+             }
+             for (i = 0, j = a.length; i &lt; j; i++) {
+                 u = a[i];
+                 s = u.name;
+                 if (u.readOnly &amp;&amp; hasDirectProperty(t, s)) {
+                     throw new TypeError(&quot;Redeclaration of const &quot; + s,
+                                         u.filename, u.lineno);
+                 }
+                 if (u.readOnly || !hasDirectProperty(t, s)) {
+                     // Does not correctly handle 'const x;' -- see bug 592335.
+                     defineVar(t, s);
+                 }
+             }
+             // FALL THROUGH
+
+           case BLOCK:
+             c = n.children;
+             for (i = 0, j = c.length; i &lt; j; i++)
+                 execute(c[i], x);
+             break;
+
+           case IMPORT:
+           case EXPORT:
+             break;
+
+           case IF:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            if (getValue(execute(n.condition, x)))
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            let cond = getValue(execute(n.condition, x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            if (cond instanceof FacetedValue) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                evaluateEach(cond, function(v, x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    if (v)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        execute(n.thenPart, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    else if (n.elsePart)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        execute(n.elsePart, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            else if (cond)
+</span><span class="diff-context">                 execute(n.thenPart, x);
+             else if (n.elsePart)
+                 execute(n.elsePart, x);
+             break;
+
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // FIXME: switch statement does not support faceted values
+</span><span class="diff-context">           case SWITCH:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            s = getValue(execute(n.discriminant, x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            s = getValue(execute(n.discriminant, x), pc);
+</span><span class="diff-context">             a = n.cases;
+             var matchDefault = false;
+           switch_loop:
+             for (i = 0, j = a.length; ; i++) {
+                 if (i === j) {
+                     if (n.defaultIndex &gt;= 0) {
+                         i = n.defaultIndex - 1; // no case matched, do default
+                         matchDefault = true;
+                         continue;
+                     }
+                     break;                      // no default, exit switch_loop
+                 }
+                 t = a[i];                       // next case (might be default!)
+                 if (t.type === CASE) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    u = getValue(execute(t.caseLabel, x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    u = getValue(execute(t.caseLabel, x), pc);
+</span><span class="diff-context">                 } else {
+                     if (!matchDefault)          // not defaulting, skip for now
+                         continue;
+                     u = s;                      // force match to do default
+                 }
+                 if (u === s) {
+                     for (;;) {                  // this loop exits switch_loop
+                         if (t.statements.children.length) {
+                             try {
+                                 execute(t.statements, x);
+                             } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n) {
+                                 break switch_loop;
+                             }
+                         }
+                         if (++i === j)
+                             break switch_loop;
+                         t = a[i];
+                     }
+                     // NOT REACHED
+                 }
+             }
+             break;
+
+           case FOR:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            n.setup &amp;&amp; getValue(execute(n.setup, x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            n.setup &amp;&amp; getValue(execute(n.setup, x), pc);
+</span><span class="diff-context">             // FALL THROUGH
+           case WHILE:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            while (!n.condition || getValue(execute(n.condition, x))) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                try {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    execute(n.body, x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                } catch (e if e === CONTINUE_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    // Must run the update expression.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            let whileCond = !n.condition || getValue(execute(n.condition, x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            evaluateEach(whileCond, function(c,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                while (c) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    try {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        execute(n.body, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        break;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    } catch (e if e === CONTINUE_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        // Must run the update expression.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    n.update &amp;&amp; getValue(execute(n.update, x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    // FIXME: Label might become more secure over time.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    c = !n.condition || getValue(execute(n.condition, x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    if (c instanceof FacetedValue)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        throw new Error('Unhandled case: condition became more secure');
+</span><span class="diff-context">                 }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                n.update &amp;&amp; getValue(execute(n.update, x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case FOR_IN:
+             u = n.varDecl;
+             if (u)
+                 execute(u, x);
+             r = n.iterator;
+             s = execute(n.object, x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(s);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = getValue(s, pc);
+</span><span class="diff-context">
+             // ECMA deviation to track extant browser JS implementation behavior.
+             t = ((v === null || v === undefined) &amp;&amp; !x.ecma3OnlyMode)
+                 ? v
+                 : toObject(v, s, n.object);
+             a = [];
+             for (i in t)
+                 a.push(i);
+             for (i = 0, j = a.length; i &lt; j; i++) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                putValue(execute(r, x), a[i], r);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                putValue(execute(r, x), a[i], r, x.pc);
+</span><span class="diff-context">                 try {
+                     execute(n.body, x);
+                 } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n) {
+                     break;
+                 } catch (e if e === CONTINUE_SIGNAL &amp;&amp; x.target === n) {
+                     continue;
+                 }
+             }
+             break;
+
+           case DO:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            do {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                try {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    execute(n.body, x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                } catch (e if e === CONTINUE_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    continue;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            } while (getValue(execute(n.condition, x)));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            let doWhileCond = !n.condition || getValue(execute(n.condition, x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            evaluateEach(doWhileCond, function(c,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                do {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    try {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        execute(n.body, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        break;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    } catch (e if e === CONTINUE_SIGNAL &amp;&amp; x.target === n) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        // Must run the update expression.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    // FIXME: Label might become more secure over time.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    c = !n.condition || getValue(execute(n.condition, x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    if (c instanceof FacetedValue)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        throw new Error('Unhandled case: condition became more secure');
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                } while(c);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case BREAK:
+             x.target = n.target;
+             throw BREAK_SIGNAL;
+
+           case CONTINUE:
+             x.target = n.target;
+             throw CONTINUE_SIGNAL;
+
+           case TRY:
+             try {
+                 execute(n.tryBlock, x);
+             } catch (e if !isSignal(e) &amp;&amp; (j = n.catchClauses.length)) {
+                 x.result = undefined;
+                 for (i = 0; ; i++) {
+                     if (i === j) {
+                         throw e;
+                     }
+                     t = n.catchClauses[i];
+                     x.scope = {object: {}, parent: x.scope};
+                     definitions.defineProperty(x.scope.object, t.varName, e, true);
+                     try {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                        if (t.guard &amp;&amp; !getValue(execute(t.guard, x)))
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        if (t.guard &amp;&amp; !getValue(execute(t.guard, x), pc))
+</span><span class="diff-context">                             continue;
+                         execute(t.block, x);
+                         break;
+                     } finally {
+                         x.scope = x.scope.parent;
+                     }
+                 }
+             } finally {
+                 if (n.finallyBlock)
+                     execute(n.finallyBlock, x);
+             }
+             break;
+
+           case THROW:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            throw getValue(execute(n.exception, x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            throw getValue(execute(n.exception, x), pc);
+</span><span class="diff-context">
+           case RETURN:
+             // Check for returns with no return value
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            x.result = n.value ? getValue(execute(n.value, x)) : undefined;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            x.result = n.value ? getValue(execute(n.value, x), pc) : undefined;
+</span><span class="diff-context">             throw RETURN_SIGNAL;
+
+           case WITH:
+             r = execute(n.object, x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            t = toObject(getValue(r), r, n.object);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            x.scope = {object: t, parent: x.scope};
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            try {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                execute(n.body, x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            } finally {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                x.scope = x.scope.parent;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            t = getValue(r,pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            evaluateEach(t, function(t,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                let o = toObject(t, r, n.object);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                x.scope = {object: o, parent: x.scope};
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                try {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    execute(n.body, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                } finally {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    x.scope = x.scope.parent;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case VAR:
+           case CONST:
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            //FIXME: Real destructuring will be done by jsdesugar.js
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            function initializeVar(x, varName, varValue, type) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                var s;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                let bv = buildVal(x.pc, varValue, undefined);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                for (s = x.scope; s; s = s.parent) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    if (hasDirectProperty(s.object, varName))
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        break;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (type === CONST)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    definitions.defineProperty(s.object, varName, bv, x.type !== EVAL_CODE, true);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                else
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    s.object[varName] = bv;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">
+</span><span class="diff-context">             c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            for (i = 0, j = c.length; i &lt; j; i++) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            // destructuring assignments
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            if (c[0].name &amp;&amp; c[0].name.type === ARRAY_INIT) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                let init = c[0].initializer;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (init.type === ARRAY_INIT) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    let initializers = init.children;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    for (i = 0, j = initializers.length; i &lt; j; i++) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        u = initializers[i];
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        t = c[0].name.children[i].value;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        initializeVar(x, t, getValue(execute(u,x),pc), n.type);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                else {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    let arrVal = getValue(execute(init,x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    for (i = 0, j = arrVal.length; i &lt; j; i++) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        t = c[0].name.children[i].value;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                        initializeVar(x, t, arrVal[i], n.type);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            else for (i = 0, j = c.length; i &lt; j; i++) {
+</span><span class="diff-context">                 u = c[i].initializer;
+                 if (!u)
+                     continue;
+                 t = c[i].name;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                for (s = x.scope; s; s = s.parent) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    if (hasDirectProperty(s.object, t))
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                        break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                u = getValue(execute(u, x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                if (n.type === CONST)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    definitions.defineProperty(s.object, t, u, x.type !== EVAL_CODE, true);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                else
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    s.object[t] = u;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                initializeVar(x, t, getValue(execute(u,x), pc), n.type);
+</span><span class="diff-context">             }
+             break;
+
+           case DEBUGGER:
+             throw &quot;NYI: &quot; + definitions.tokens[n.type];
+
+           case SEMICOLON:
+             if (n.expression)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                x.result = getValue(execute(n.expression, x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                x.result = getValue(execute(n.expression, x), pc);
+</span><span class="diff-context">             break;
+
+           case LABEL:
+             try {
+                 execute(n.statement, x);
+             } catch (e if e === BREAK_SIGNAL &amp;&amp; x.target === n.target) {
+             }
+             break;
+
+           case COMMA:
+             c = n.children;
+             for (i = 0, j = c.length; i &lt; j; i++)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                v = getValue(execute(c[i], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                v = getValue(execute(c[i], x), pc);
+</span><span class="diff-context">             break;
+
+           case ASSIGN:
+             c = n.children;
+             r = execute(c[0], x);
+             t = n.assignOp;
+             if (t)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                u = getValue(r);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[1], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                u = getValue(r, x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = getValue(execute(c[1], x), x.pc);
+</span><span class="diff-context">             if (t) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                switch (t) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case BITWISE_OR:  v = u | v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case BITWISE_XOR: v = u ^ v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case BITWISE_AND: v = u &amp; v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case LSH:         v = u &lt;&lt; v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case RSH:         v = u &gt;&gt; v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case URSH:        v = u &gt;&gt;&gt; v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case PLUS:        v = u + v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case MINUS:       v = u - v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case MUL:         v = u * v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case DIV:         v = u / v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                  case MOD:         v = u % v; break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                v = evalBinOp(u, v, x, ops[t])
+</span><span class="diff-context">             }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            putValue(r, v, c[0]);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            putValue(r, v, c[0], x.pc);
+</span><span class="diff-context">             break;
+
+           case HOOK:
+             c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) ? getValue(execute(c[1], x))
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                                           : getValue(execute(c[2], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            t = getValue(execute(c[0], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEach(t, function(t,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return t ? getValue(execute(c[1], x), x.pc)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                         : getValue(execute(c[2], x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case OR:
+             c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) || getValue(execute(c[1], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = getValue(execute(c[0], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            if (v instanceof FacetedValue) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                let v2Thunk = function(pc) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return getValue(execute(c[1],x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                };
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                v = evaluateEach(v, function(v1, x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return v1 || v2Thunk(x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            else if (!v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                v = getValue(execute(c[1], x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-context">             break;
+
+           case AND:
+             c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &amp;&amp; getValue(execute(c[1], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = getValue(execute(c[0], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            if (v instanceof FacetedValue) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                let v2Thunk = function(pc) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return getValue(execute(c[1],x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                };
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                v = evaluateEach(v, function(v1, x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return v1 &amp;&amp; v2Thunk(x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            else if (v) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                v = getValue(execute(c[1], x), x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }
+</span><span class="diff-context">             break;
+
+           case BITWISE_OR:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) | getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case BITWISE_XOR:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) ^ getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case BITWISE_AND:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &amp; getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case EQ:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) == getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case NE:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) != getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case STRICT_EQ:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) === getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case STRICT_NE:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) !== getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case LT:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &lt; getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case LE:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &lt;= getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case GE:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &gt;= getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case GT:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &gt; getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case IN:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) in getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">          case INSTANCEOF:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            t = getValue(execute(c[0], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            u = getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            if (isObject(u) &amp;&amp; typeof u.__hasInstance__ === &quot;function&quot;)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                v = u.__hasInstance__(t);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            else
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                v = t instanceof u;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case LSH:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &lt;&lt; getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case RSH:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &gt;&gt; getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case URSH:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) &gt;&gt;&gt; getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case PLUS:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) + getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case MINUS:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) - getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case MUL:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) * getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case DIV:
+</span><span class="diff-indicator-added">+</span><span class="diff-added">          case MOD:
+</span><span class="diff-context">             c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) / getValue(execute(c[1], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v1 = getValue(execute(c[0], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v2 = getValue(execute(c[1], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evalBinOp(v1, v2, x, ops[n.type]);
+</span><span class="diff-context">             break;
+
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">          case MOD:
+</span><span class="diff-indicator-added">+</span><span class="diff-added">          case INSTANCEOF:
+</span><span class="diff-context">             c = n.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = getValue(execute(c[0], x)) % getValue(execute(c[1], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            t = getValue(execute(c[0], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            u = getValue(execute(c[1], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEachPair(t, u, function(t, u, pc) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (isObject(u) &amp;&amp; typeof u.__hasInstance__ === &quot;function&quot;)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return u.__hasInstance__(t);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                else
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    return t instanceof u;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case DELETE:
+             t = execute(n.children[0], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = !(t instanceof Reference) || delete t.base[t.propertyName];
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEach(t, function(t,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return !(t instanceof Reference) || delete t.base[t.propertyName];
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case VOID:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            getValue(execute(n.children[0], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            getValue(execute(n.children[0], x), pc);
+</span><span class="diff-context">             break;
+
+           case TYPEOF:
+             t = execute(n.children[0], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            if (t instanceof Reference)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                t = t.base ? t.base[t.propertyName] : undefined;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = typeof t;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEach(t, function(t,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (t instanceof Reference)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    t = t.base ? t.base[t.propertyName] : undefined;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return typeof t;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case NOT:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = !getValue(execute(n.children[0], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case BITWISE_NOT:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = ~getValue(execute(n.children[0], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case UNARY_PLUS:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = +getValue(execute(n.children[0], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            break;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">
+</span><span class="diff-context">           case UNARY_MINUS:
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = -getValue(execute(n.children[0], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            c = n.children;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evalUnaryOp(c, x, n.type);
+</span><span class="diff-context">             break;
+
+           case INCREMENT:
+           case DECREMENT:
+             t = execute(n.children[0], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            u = Number(getValue(t));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            u = getValue(t, pc);
+</span><span class="diff-context">             if (n.postfix)
+                 v = u;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            putValue(t, (n.type === INCREMENT) ? ++u : --u, n.children[0]);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            u = evaluateEach(u, function(u,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                let newVal = Number(n.type===INCREMENT ? u+1 : u-1);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return putValue(t, newVal, n.children[0], x.pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             if (!n.postfix)
+                 v = u;
+             break;
+
+           case DOT:
+             c = n.children;
+             r = execute(c[0], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            t = getValue(r);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            u = c[1].value;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = new Reference(toObject(t, r, c[0]), u, n);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            t = getValue(r, pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEach(t, function(t,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                u = c[1].value;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (u==='charAt') {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    this.THA = true;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return new Reference(toObject(t, r, c[0]), u, n);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case INDEX:
+             c = n.children;
+             r = execute(c[0], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            t = getValue(r);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            u = getValue(execute(c[1], x));
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = new Reference(toObject(t, r, c[0]), String(u), n);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            t = getValue(r, pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            u = getValue(execute(c[1], x), pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEachPair(t, u, function(t, u) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return new Reference(toObject(t, r, c[0]), String(u), n);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case LIST:
+             // Curse ECMA for specifying that arguments is not an Array object!
+             v = {};
+             c = n.children;
+             for (i = 0, j = c.length; i &lt; j; i++) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                u = getValue(execute(c[i], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                u = getValue(execute(c[i], x), pc);
+</span><span class="diff-context">                 definitions.defineProperty(v, i, u, false, false, true);
+             }
+             definitions.defineProperty(v, &quot;length&quot;, i, false, false, true);
+             break;
+
+           case CALL:
+             c = n.children;
+             r = execute(c[0], x);
+             a = execute(c[1], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            f = getValue(r);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            x.staticEnv = n.staticEnv;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            if (isPrimitive(f) || typeof f.__call__ !== &quot;function&quot;) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                throw new TypeError(r + &quot; is not callable&quot;, c[0].filename, c[0].lineno);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            t = (r instanceof Reference) ? r.base : null;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            if (t instanceof Activation)
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                t = null;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = f.__call__(t, a, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            f = getValue(r, pc);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            //v = evaluateEach(f, function(f,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEachPair(f, r, function(f, r, x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                x.staticEnv = n.staticEnv;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (isPrimitive(f) || typeof f.__call__ !== &quot;function&quot;) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    throw new TypeError(r + &quot; is not callable&quot;, c[0].filename, c[0].lineno);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                t = (r instanceof Reference) ? r.base : null;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (t instanceof Activation)
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    t = null;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return f.__call__(t, a, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case NEW:
+           case NEW_WITH_ARGS:
+             c = n.children;
+             r = execute(c[0], x);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            f = getValue(r);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            f = getValue(r, pc);
+</span><span class="diff-context">             if (n.type === NEW) {
+                 a = {};
+                 definitions.defineProperty(a, &quot;length&quot;, 0, false, false, true);
+             } else {
+                 a = execute(c[1], x);
+             }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            if (isPrimitive(f) || typeof f.__construct__ !== &quot;function&quot;) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                throw new TypeError(r + &quot; is not a constructor&quot;, c[0].filename, c[0].lineno);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            }
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            v = f.__construct__(a, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            v = evaluateEach(f, function(f,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                if (isPrimitive(f) || typeof f.__construct__ !== &quot;function&quot;) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    throw new TypeError(r + &quot; is not a constructor&quot;, c[0].filename, c[0].lineno);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                return f.__construct__(a, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            }, x);
+</span><span class="diff-context">             break;
+
+           case ARRAY_INIT:
+             v = [];
+             c = n.children;
+             for (i = 0, j = c.length; i &lt; j; i++) {
+                 if (c[i])
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    v[i] = getValue(execute(c[i], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    v[i] = getValue(execute(c[i], x), pc);
+</span><span class="diff-context">             }
+             v.length = j;
+             break;
+
+           case OBJECT_INIT:
+             v = {};
+             c = n.children;
+             for (i = 0, j = c.length; i &lt; j; i++) {
+                 t = c[i];
+                 if (t.type === PROPERTY_INIT) {
+                     let c2 = t.children;
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                    v[c2[0].value] = getValue(execute(c2[1], x));
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                    v[c2[0].value] = getValue(execute(c2[1], x), pc);
+</span><span class="diff-context">                 } else {
+                     f = newFunction(t, x);
+                     u = (t.type === GETTER) ? '__defineGetter__'
+                                             : '__defineSetter__';
+                     v[u](t.name, thunk(f, x));
+                 }
+             }
+             break;
+
+           case NULL:
+             v = null;
+             break;
+
+           case THIS:
+             v = x.thisObject;
+             break;
+
+           case TRUE:
+             v = true;
+             break;
+
+           case FALSE:
+             v = false;
+             break;
+
+           case IDENTIFIER:
+             for (s = x.scope; s; s = s.parent) {
+                 if (n.value in s.object)
+                     break;
+             }
+             v = new Reference(s &amp;&amp; s.object, n.value, n);
+             break;
+
+           case NUMBER:
+           case STRING:
+           case REGEXP:
+             v = n.value;
+             break;
+
+           case GROUP:
+             v = execute(n.children[0], x);
+             break;
+
+           default:
+             throw &quot;PANIC: unknown operation &quot; + n.type + &quot;: &quot; + uneval(n);
+         }
+
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // For some odd reasons, faceted values sometimes forget their class.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        // We rebuild them here if needed.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        //v = rebuild(v);
+</span><span class="diff-context">         return v;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        /*
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        } catch(e if !isSignal(e)) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            alert('Caught e: ' + e + ' \nn: ' + n);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            throw END_SIGNAL;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        */
+</span><span class="diff-context">     }
+
+     function Activation(f, a) {
+         for (var i = 0, j = f.params.length; i &lt; j; i++)
+             definitions.defineProperty(this, f.params[i], a[i], true);
+         definitions.defineProperty(this, &quot;arguments&quot;, a, true);
+     }
+
+     // Null Activation.prototype's proto slot so that Object.prototype.* does not
+     // pollute the scope of heavyweight functions.  Also delete its 'constructor'
+     // property so that it doesn't pollute function scopes.
+
+     Activation.prototype.__proto__ = null;
+     delete Activation.prototype.constructor;
+
+     function FunctionObject(node, scope) {
+         this.node = node;
+         this.scope = scope;
+         definitions.defineProperty(this, &quot;length&quot;, node.params.length, true, true, true);
+         var proto = {};
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        definitions.defineProperty(this, &quot;prototype&quot;, proto, true);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        //FIXME: should be read only, but this was causing some problems in dom.js.
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        //definitions.defineProperty(this, &quot;prototype&quot;, proto, true);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        definitions.defineProperty(this, &quot;prototype&quot;, proto);
+</span><span class="diff-context">         definitions.defineProperty(proto, &quot;constructor&quot;, this, false, false, true);
+     }
+
+     /*
+      * ModuleInstance :: (Module, scope) -&gt; ModuleInstance
+      *
+      * Dynamic semantic representation of a module.
+      */
+     function ModuleInstance(mod, scope) {
+         this.module = mod;
+         this.scope = scope;
+     }
+
+     /*
+      * newModule :: (Module, scope) -&gt; module instance object
+      *
+      * Instantiates a module node, producing a module instance object.
+      */
+     function newModule(mod, scope) {
+         var exports = mod.exports;
+
+         // the module instance
+         mod.instance = new ModuleInstance(mod, {object: new Object, parent: scope});
+
+         function keys() {
+             var result = [];
+             exports.forEach(function(name, exp) {
+                 result.push(name);
+             });
+             return result;
+         }
+
+         function getExportDescriptor(name) {
+             if (exports.has(name)) {
+                 var exp = exports.get(name);
+                 var inst = exp.resolved.module.instance;
+
+                 return {
+                     value: inst.scope.object[exp.resolved.internalID],
+                     writable: false,
+                     enumerable: true,
+                     configurable: true
+                 };
+             }
+
+             throw new ReferenceError(&quot;no such export: &quot; + name);
+         }
+
+         function getExportValue(receiver, name) {
+             return getExportDescriptor(name).value;
+         }
+
+         function hasExport(name) {
+             return exports.has(name);
+         }
+
+         function refuse() { }
+
+         // the module instance proxy
+         var instObj = Proxy.create({
+             getOwnPropertyDescriptor: getExportDescriptor,
+             getPropertyDescriptor: getExportDescriptor,
+             getOwnPropertyNames: keys,
+             defineProperty: refuse,
+             &quot;delete&quot;: refuse,
+             fix: refuse,
+             has: hasExport,
+             hasOwn: hasExport,
+             get: getExportValue,
+             set: refuse,
+             enumerate: keys,
+             keys: keys
+         });
+
+         // associate the instance with the instance proxy
+         moduleInstances.set(instObj, mod.instance);
+         mod.instance.proxy = instObj;
+
+         return instObj;
+     }
+
+     function instantiateModules(n, scope) {
+         n.modDefns.forEach(function(name, defn) {
+             var m = defn.module;
+             var instObj = newModule(m, scope);
+             var inst = moduleInstances.get(instObj);
+             definitions.defineProperty(scope.object, name, instObj, true, true);
+             instantiateModules(m.node.body, inst.scope);
+         });
+     }
+
+     function getPropertyDescriptor(obj, name) {
+         while (obj) {
+             if (({}).hasOwnProperty.call(obj, name))
+                 return Object.getOwnPropertyDescriptor(obj, name);
+             obj = Object.getPrototypeOf(obj);
+         }
+     }
+
+     function getOwnProperties(obj) {
+         var map = {};
+         for (var name in Object.getOwnPropertyNames(obj))
+             map[name] = Object.getOwnPropertyDescriptor(obj, name);
+         return map;
+     }
+
+     // Returns a new function wrapped with a Proxy.
+     function newFunction(n, x) {
+         var fobj = new FunctionObject(n, x.scope);
+         var handler = definitions.makePassthruHandler(fobj);
+         var p = Proxy.createFunction(handler,
+                                      function() { return fobj.__call__(this, arguments, x); },
+                                      function() { return fobj.__construct__(arguments, x); });
+         return p;
+     }
+
+     var FOp = FunctionObject.prototype = {
+
+         // Internal methods.
+         __call__: function (t, a, x) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            var x2 = new ExecutionContext(FUNCTION_CODE, x.version);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var x2 = new ExecutionContext(FUNCTION_CODE, x.pc, x.version);
+</span><span class="diff-context">             x2.thisObject = t || global;
+             x2.thisModule = null;
+             x2.caller = x;
+             x2.callee = this;
+             definitions.defineProperty(a, &quot;callee&quot;, this, false, false, true);
+             var f = this.node;
+             x2.scope = {object: new Activation(f, a), parent: this.scope};
+
+             try {
+                 x2.execute(f.body);
+             } catch (e if e === RETURN_SIGNAL) {
+                 return x2.result;
+             }
+             return undefined;
+         },
+
+         __construct__: function (a, x) {
+             var o = new Object;
+             var p = this.prototype;
+             if (isObject(p))
+                 o.__proto__ = p;
+             // else o.__proto__ defaulted to Object.prototype
+
+             var v = this.__call__(o, a, x);
+             if (isObject(v))
+                 return v;
+             return o;
+         },
+
+         __hasInstance__: function (v) {
+             if (isPrimitive(v))
+                 return false;
+             var p = this.prototype;
+             if (isPrimitive(p)) {
+                 throw new TypeError(&quot;'prototype' property is not an object&quot;,
+                                     this.node.filename, this.node.lineno);
+             }
+             var o;
+             while ((o = Object.getPrototypeOf(v))) {
+                 if (o === p)
+                     return true;
+                 v = o;
+             }
+             return false;
+         },
+
+         // Standard methods.
+         toString: function () {
+             return this.node.getSource();
+         },
+
+         apply: function (t, a) {
+             // Curse ECMA again!
+             if (typeof this.__call__ !== &quot;function&quot;) {
+                 throw new TypeError(&quot;Function.prototype.apply called on&quot; +
+                                     &quot; uncallable object&quot;);
+             }
+
+             if (t === undefined || t === null)
+                 t = global;
+             else if (typeof t !== &quot;object&quot;)
+                 t = toObject(t, t);
+
+             if (a === undefined || a === null) {
+                 a = {};
+                 definitions.defineProperty(a, &quot;length&quot;, 0, false, false, true);
+             } else if (a instanceof Array) {
+                 var v = {};
+                 for (var i = 0, j = a.length; i &lt; j; i++)
+                     definitions.defineProperty(v, i, a[i], false, false, true);
+                 definitions.defineProperty(v, &quot;length&quot;, i, false, false, true);
+                 a = v;
+             } else if (!(a instanceof Object)) {
+                 // XXX check for a non-arguments object
+                 throw new TypeError(&quot;Second argument to Function.prototype.apply&quot; +
+                                     &quot; must be an array or arguments object&quot;,
+                                     this.node.filename, this.node.lineno);
+             }
+
+             return this.__call__(t, a, ExecutionContext.current);
+         },
+
+         call: function (t) {
+             // Curse ECMA a third time!
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">            var a = Array.prototype.splice.call(arguments, 1);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            //var a = Array.prototype.splice.call(arguments, 1);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">            var a = Array.prototype.slice.call(arguments, 1);
+</span><span class="diff-context">             return this.apply(t, a);
+         }
+     };
+
+     // Connect Function.prototype and Function.prototype.constructor in global.
+     reflectClass('Function', FOp);
+
+     // Help native and host-scripted functions be like FunctionObjects.
+     var Fp = Function.prototype;
+     var REp = RegExp.prototype;
+
+     if (!('__call__' in Fp)) {
+         definitions.defineProperty(Fp, &quot;__call__&quot;,
+                                    function (t, a, x) {
+                                        // Curse ECMA yet again!
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                                       a = Array.prototype.splice.call(a, 0, a.length);
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                                       return this.apply(t, a);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       //FIXME: Need support for faceted arguments here
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       //a = Array.prototype.splice.call(a, 0, a.length);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       a = Array.prototype.slice.call(a, 0, a.length);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       if (!definitions.isNativeCode(this)) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                           return this.apply(t, a);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       }
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       var thisObj = this;
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       switch (a.length) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                         case 1:
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                            return evaluateEach(rebuild(a[0],x.pc), function(v,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                               return thisObj.call(t, v);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                            }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                         case 2:
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                            return evaluateEachPair(strip(a[0],x.pc), strip(a[1],x.pc),
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                                function(v1,v2,x) {
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                                    return thisObj.call(t, v1, v2);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                                }, x);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                         //No support for more than 2 FV
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                         //arguments for native functions
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                         default:
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                            return thisObj.apply(t, a);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       }
+</span><span class="diff-context">                                    }, true, true, true);
+         definitions.defineProperty(REp, &quot;__call__&quot;,
+                                    function (t, a, x) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                                       a = Array.prototype.splice.call(a, 0, a.length);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       //a = Array.prototype.splice.call(a, 0, a.length);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       a = Array.prototype.slice.call(a, 0, a.length);
+</span><span class="diff-context">                                        return this.exec.apply(this, a);
+                                    }, true, true, true);
+         definitions.defineProperty(Fp, &quot;__construct__&quot;,
+                                    function (a, x) {
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">                                       a = Array.prototype.splice.call(a, 0, a.length);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       //a = Array.prototype.splice.call(a, 0, a.length);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">                                       a = Array.prototype.slice.call(a, 0, a.length);
+</span><span class="diff-context">                                        switch (a.length) {
+                                          case 0:
+                                            return new this();
+                                          case 1:
+                                            return new this(a[0]);
+                                          case 2:
+                                            return new this(a[0], a[1]);
+                                          case 3:
+                                            return new this(a[0], a[1], a[2]);
+                                          default:
+                                            var argStr = &quot;&quot;;
+                                            for (var i=0; i&lt;a.length; i++) {
+                                                argStr += 'a[' + i + '],';
+                                            }
+                                            return eval('new this(' + argStr.slice(0,-1) + ');');
+                                        }
+                                    }, true, true, true);
+
+         // Since we use native functions such as Date along with host ones such
+         // as global.eval, we want both to be considered instances of the native
+         // Function constructor.
+         definitions.defineProperty(Fp, &quot;__hasInstance__&quot;,
+                                    function (v) {
+                                        return v instanceof Function || v instanceof global.Function;
+                                    }, true, true, true);
+     }
+
+     function thunk(f, x) {
+         return function () { return f.__call__(this, arguments, x); };
+     }
+
+     function resolveGlobal(ast) {
+         // clone the static env so we can rollback if compilation fails
+         var extendedStaticEnv = globalStaticEnv.copy();
+         resolver.resolve(ast, extendedStaticEnv);
+         // compilation succeeded, so commit to the extended static env
+         globalStaticEnv = extendedStaticEnv;
+     }
+
+     function evaluate(s, f, l) {
+         if (typeof s !== &quot;string&quot;)
+             return s;
+
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        var x = new ExecutionContext(GLOBAL_CODE, Narcissus.options.version);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var x = new ExecutionContext(GLOBAL_CODE, new ProgramCounter(), Narcissus.options.version);
+</span><span class="diff-context">         var ast = parser.parse(s, f, l);
+         if (Narcissus.options.desugarExtensions)
+             ast = desugaring.desugar(ast);
+         if (x.version === &quot;harmony&quot;) {
+             resolveGlobal(ast);
+             instantiateModules(ast, x.scope);
+         }
+         x.execute(ast);
+         return x.result;
+     }
+
+     function printStackTrace(stack) {
+         var st = String(stack).split(/\n/);
+         // beautify stack trace:
+         //   - eliminate blank lines
+         //   - sanitize confusing trace lines for getters and js -e expressions
+         //   - simplify source location reporting
+         //   - indent
+         for (var i = 0; i &lt; st.length; i++) {
+             var line = st[i].trim();
+             if (line) {
+                 line = line.replace(/^(\(\))?@/, &quot;&lt;unknown&gt;@&quot;);
+                 line = line.replace(/@(.*\/|\\)?([^\/\\]+:[0-9]+)/, &quot; at $2&quot;);
+                 print(&quot;    in &quot; + line);
+             }
+         }
+     }
+
+     // A read-eval-print-loop that roughly tracks the behavior of the js shell.
+     function repl() {
+
+         // Display a value similarly to the js shell.
+         function display(x) {
+             if (typeof x === &quot;object&quot;) {
+                 // At the js shell, objects with no |toSource| don't print.
+                 if (x !== null &amp;&amp; &quot;toSource&quot; in x) {
+                     try {
+                         print(x.toSource());
+                     } catch (e) {
+                     }
+                 } else {
+                     print(&quot;null&quot;);
+                 }
+             } else if (typeof x === &quot;string&quot;) {
+                 print(uneval(x));
+             } else if (typeof x !== &quot;undefined&quot;) {
+                 // Since x must be primitive, String can't throw.
+                 print(String(x));
+             }
+         }
+
+         // String conversion that never throws.
+         function string(x) {
+             try {
+                 return String(x);
+             } catch (e) {
+                 return &quot;unknown (can't convert to string)&quot;;
+             }
+         }
+
+         const BREAK_INTERACTION = {};
+
+         // isCommand :: (string) -&gt; boolean
+         function isCommand(line) {
+             switch (line.trim()) {
+               case &quot;.help&quot;:
+                 print(&quot;.begin  Begin multiline input mode.&quot;);
+                 print(&quot;.break  Sometimes you get stuck in a place you can't get out... This will get you out.&quot;);
+                 print(&quot;.clear  Break, and also clear the global environment.&quot;);
+                 print(&quot;.end    End multiline input mode.&quot;);
+                 print(&quot;.exit   Exit the prompt.&quot;);
+                 print(&quot;.help   Show repl options.&quot;);
+                 return true;
+
+               case &quot;.clear&quot;:
+                 resetEnvironment();
+                 // FALL THROUGH
+
+               case &quot;.break&quot;:
+                 throw BREAK_INTERACTION;
+
+               case &quot;.exit&quot;:
+                 throw END_SIGNAL;
+             }
+             return false;
+         }
+
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        var x = new ExecutionContext(GLOBAL_CODE, Narcissus.options.version);
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        var x = new ExecutionContext(GLOBAL_CODE, new ProgramCounter(), Narcissus.options.version);
+</span><span class="diff-context">
+         // Line number in/out parameter to parser.parseStdin.
+         var ln = {value: 0};
+
+         ExecutionContext.current = x;
+         for (;;) {
+             x.result = undefined;
+             putstr(&quot;njs&gt; &quot;);
+             var src = readline();
+
+             // If readline receives EOF it returns null.
+             if (src === null) {
+                 print(&quot;&quot;);
+                 break;
+             }
+             ++ln.value;
+
+             try {
+                 var ast = parser.parseStdin(src, ln, &quot;...  &quot;, isCommand);
+                 if (Narcissus.options.desugarExtensions)
+                     ast = desugaring.desugar(ast);
+                 if (x.version === &quot;harmony&quot;) {
+                     resolveGlobal(ast);
+                     instantiateModules(ast, x.scope);
+                 }
+                 execute(ast, x);
+                 display(x.result);
+             } catch (e if e === END_SIGNAL) {
+                 break;
+             } catch (e if e === BREAK_INTERACTION) {
+                 continue;
+             } catch (e if e instanceof SyntaxError) {
+                 const PREFIX = (e.filename || &quot;stdin&quot;) + &quot;:&quot; + e.lineNumber + &quot;: &quot;;
+                 print(PREFIX + e.toString());
+                 print(PREFIX + e.source);
+                 print(PREFIX + &quot;.&quot;.repeat(e.cursor) + &quot;^&quot;);
+             } catch (e if e instanceof Error) {
+                 print((e.filename || &quot;stdin&quot;) + &quot;:&quot; +  e.lineNumber + &quot;: &quot; + e.toString());
+                 if (e.stack)
+                     printStackTrace(e.stack);
+             } catch (e) {
+                 print(&quot;unexpected Narcissus exception (&quot; + e + &quot;)&quot;);
+                 throw e;
+             }
+         }
+         ExecutionContext.current = null;
+     }
+
+     function test(thunk) {
+         try {
+             thunk();
+         } catch (e) {
+             print(e.fileName + &quot;:&quot; + e.lineNumber + &quot;: &quot; + e.name + &quot;: &quot; + e.message);
+             printStackTrace(e.stack);
+             return false;
+         }
+         return true;
+     }
+
+     return {
+         // resetEnvironment wipes any properties added externally to global,
+         // but properties added to globalBase will persist.
+         global: global,
+         globalBase: globalBase,
+         resetEnvironment: resetEnvironment,
+         evaluate: evaluate,
+         getValueHook: null,
+         repl: repl,
+</span><span class="diff-indicator-removed">-</span><span class="diff-removed">        test: test
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        test: test,
+</span><span class="diff-indicator-added">+</span><span class="diff-added">        getPC: getPC
+</span><span class="diff-context">     };
+
+ }());
+</span></pre>
+
+ </body>
+</html>

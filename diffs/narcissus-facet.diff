@@ -1,0 +1,808 @@
+Only in ../narcissus/lib/: decompiler.js
+Only in ../narcissus/lib/: definitions.js
+Only in ../narcissus/lib/: desugaring.js
+diff ../narcissus/lib/jsdefs.js zaphod/chrome/content/narcissus/jsdefs.js
+61c61,63
+<                 eval: true
+---
+>                 eval: true,
+>                 run: true,
+>                 evaluate: true
+diff ../narcissus/lib/jsexec.js zaphod/chrome/content/narcissus/jsexec.js
+64a65,74
+>     // Faceted Value utilities
+>     var FacetedValue = Zaphod.facets.FacetedValue;
+>     var ProgramCounter = Zaphod.facets.ProgramCounter;
+>     var Label = Zaphod.facets.Label;
+>     var buildVal = Zaphod.facets.buildVal;
+>     var evaluateEach = Zaphod.facets.evaluateEach;
+>     var evaluateEachPair = Zaphod.facets.evaluateEachPair;
+>     var strip = Zaphod.facets.strip;
+>     var rebuild = Zaphod.facets.rebuild;
+> 
+89c99
+<     function ExecutionContext(type, version) {
+---
+>     function ExecutionContext(type, pc, version) {
+96a107
+>         this.pc = pc;
+103a115,119
+>     function getPC() {
+>         var x = ExecutionContext.current;
+>         return x ? x.pc : new ProgramCounter();;
+>     }
+> 
+115c131
+<             var x2 = new ExecutionContext(EVAL_CODE, x.version);
+---
+>             var x2 = new ExecutionContext(EVAL_CODE, x.pc, x.version);
+130a147,160
+>         // Displays only high alerts (assumes a simple hi/lo lattice
+>         alert: function(msg){
+>             let pc = getPC();
+>             if (pc.containsStr('h') || pc.isEmpty())
+>                 alert(msg);
+>             else
+>                 Zaphod.log('Suppressed unauthorized alert pc:' + pc + ' msg: "' + msg + '"');
+>         },
+> 
+>         exportValue: function(fv) {
+>             let v = (fv instanceof FacetedValue) ? fv.unauthorized : fv;
+>             alert('Attacker sees "' + v + '"');
+>         },
+> 
+160,161c190,195
+<             // Called as function or constructor: convert argument to string type.
+<             s = arguments.length ? "" + s : "";
+---
+>             var argSpecified = arguments.length;
+>             var newStr = evaluateEach(s, function(s,x) {
+>                 // Called as function or constructor: convert argument to string type.
+>                 return (argSpecified ? "" + s : "");
+>             }, ExecutionContext.current);
+> 
+165c199,205
+<                 this.value = s;
+---
+>                 this.value = newStr;
+>                 var strlen = evaluateEach(newStr, function(s,x) {
+>                     // Called as function or constructor: convert argument to string type.
+>                     return s ? s.length : 0;
+>                 }, ExecutionContext.current);
+>                 definitions.defineProperty(this, 'length', strlen, true,
+>                         true, true);
+168c208
+<             return s;
+---
+>             else return newStr;
+185c225,271
+<         }
+---
+>         },
+>         cloak: function(v) {
+>             // In Zaphod, sticking with a 2-element lattice
+>             return Zaphod.facets.cloak(v,'h');
+>         },
+>         isFacetedValue: function(v) {
+>             return (v instanceof FacetedValue);
+>         },
+>         // A view is represented as a program counter,
+>         // except that all labels can only be 'positive'.
+>         // If a label is not explicitly in the view,
+>         // the viewer sees the unauthorized view.
+>         getView: Zaphod.facets.getView,
+>         getAuth: function(v) {
+>             return Zaphod.facets.getView(v,
+>                     new ProgramCounter(new Label('h')));
+>         },
+>         getUnAuth: function(v) {
+>             return Zaphod.facets.getView(v,
+>                     new ProgramCounter((new Label('h')).reverse()));
+>         },
+>     };
+> 
+>     // Load missing functions onto Array and String
+>     ["concat", "every", "foreach", "isArray", "join", "map", "push", "pop",
+>         "reverse", "reduce", "shift", "slice", "sort", "splice",
+>         "toLocalString", "unshift"].forEach(function(fName) {
+>             definitions.defineProperty(globalBase.Array, fName, Array[fName], false,
+>                 false, true);
+>         });
+>     //["charAt", "charCodeAt", "concat", "fromCharCode", "indexOf",
+>     ["concat", "indexOf",
+>         "lastIndexOf", "localeCompare", "match", "replace", "search", "slice",
+>         "split", "substring", "toLowerCase", "toUpperCase", "trim", "valueOf",
+>         //HTML methods
+>         "big", "blink", "bold", "fixed", "fontcolor", "fontsize", "italics",
+>         "link", "small", "strike", "sub", "sup"].forEach(function(fName) {
+>             definitions.defineProperty(globalBase.String, fName, String[fName], false,
+>                 false, true);
+>         });
+>     var oldFCC = String.fromCharCode;
+>     globalBase.String.fromCharCode = function(v1,v2) {
+>         x = ExecutionContext.current;
+>         return evaluateEachPair(v1, v2, function(v1,v2,x) {
+>                 if (v2) return oldFCC(v1,v2);
+>                 else return oldFCC(v1);
+>         }, x);
+187a274,315
+>     // Operators
+>     var ops = {};
+>     ops[BITWISE_OR] = '|';
+>     ops[BITWISE_XOR] = '^';
+>     ops[BITWISE_AND] = '&';
+>     ops[EQ] = '==';
+>     ops[NE] = '!=';
+>     ops[STRICT_EQ] = '===';
+>     ops[STRICT_NE] = '!==';
+>     ops[LT] = '<';
+>     ops[LE] = '<=';
+>     ops[GE] = '>=';
+>     ops[GT] = '>';
+>     ops[IN] = 'in';
+>     ops[LSH] = '<<';
+>     ops[RSH] = '>>';
+>     ops[URSH] = '>>>';
+>     ops[PLUS] = '+';
+>     ops[MINUS] = '-';
+>     ops[MUL] = '*';
+>     ops[DIV] = '/';
+>     ops[MOD] = '%';
+>     ops[NOT] = '!';
+>     ops[BITWISE_NOT] = '~';
+>     ops[UNARY_PLUS] = '+';
+>     ops[UNARY_MINUS] = '-';
+> 
+> 
+>     function evalUnaryOp(c, x, op) {
+>         var v = getValue(execute(c[0], x), x.pc);
+> 
+>         return evaluateEach(v, function(v) {
+>             return eval(ops[op] + "v");
+>         }, x);
+>     }
+> 
+>     function evalBinOp(v1, v2, x, op) {
+>         return evaluateEachPair(v1, v2, function(v1, v2) {
+>             return eval('v1' + op + 'v2');
+>         }, x);
+>     }
+> 
+233c361,362
+<         ExecutionContext.current = new ExecutionContext(GLOBAL_CODE, Narcissus.options.version);
+---
+>         ExecutionContext.current = new ExecutionContext(GLOBAL_CODE,
+>                 new ProgramCounter(), Narcissus.options.version);
+279c408
+<     global.String.fromCharCode = String.fromCharCode;
+---
+>     //global.String.fromCharCode = String.fromCharCode;
+313c442,462
+<     function getValue(v) {
+---
+>     function derefFacetedValue(v, pc) {
+>         var k = v.label,
+>             auth = v.authorized,
+>             unauth = v.unauthorized;
+>         if (pc.contains(k)) {
+>             return getValue(auth, pc);
+>         }
+>         else if (pc.contains(k.reverse())) {
+>             return getValue(unauth, pc);
+>         }
+>         else {
+>             return buildVal(new ProgramCounter(k),
+>                             getValue(auth, pc.join(k)),
+>                             getValue(unauth, pc.join(k.reverse())));
+>         }
+>     }
+> 
+>     function getValue(v, pc) {
+>         if (v instanceof FacetedValue) {
+>             return derefFacetedValue(v, pc);
+>         }
+327,329c476,493
+<     function putValue(v, w, vn) {
+<         if (v instanceof Reference)
+<             return (v.base || global)[v.propertyName] = w;
+---
+>     function putValue(v, w, vn, pc) {
+>         if (v instanceof FacetedValue) {
+>             // x is not really an execution environment, but is being used a
+>             // way of passing on data.
+>             return evaluateEachPair(v, w, function(ref, val, x) {
+>                 return putValue(ref, val, x.vn, x.pc);
+>             }, {pc: pc, vn: vn});
+>         }
+>         else if (v instanceof Reference) {
+>             //return (v.base || global)[v.propertyName] = w;
+>             var base = v.base || global;
+>             var oldVal = base[v.propertyName];
+>             var newVal = base[v.propertyName] = buildVal(pc, w, oldVal);
+>             // The returned value should be the local version, not the stored
+>             // version.  Within a block, the extra labels are not needed and
+>             // are simply wasteful.
+>             return w;
+>         }
+413c577
+<         var x2 = new ExecutionContext(MODULE_CODE, x.version);
+---
+>         var x2 = new ExecutionContext(MODULE_CODE, x.pc, x.version);
+422c586,590
+<         var a, c, f, i, j, r, s, t, u, v;
+---
+>         //try{
+>         var a, c, f, i, j, r, s, t, u, v, v1, v2;
+> 
+>         // Store the original pc
+>         var pc = x.pc;
+512c680,689
+<             if (getValue(execute(n.condition, x)))
+---
+>             let cond = getValue(execute(n.condition, x), pc);
+>             if (cond instanceof FacetedValue) {
+>                 evaluateEach(cond, function(v, x) {
+>                     if (v)
+>                         execute(n.thenPart, x);
+>                     else if (n.elsePart)
+>                         execute(n.elsePart, x);
+>                 }, x);
+>             }
+>             else if (cond)
+517a695
+>         // FIXME: switch statement does not support faceted values
+519c697
+<             s = getValue(execute(n.discriminant, x));
+---
+>             s = getValue(execute(n.discriminant, x), pc);
+534c712
+<                     u = getValue(execute(t.caseLabel, x));
+---
+>                     u = getValue(execute(t.caseLabel, x), pc);
+559c737
+<             n.setup && getValue(execute(n.setup, x));
+---
+>             n.setup && getValue(execute(n.setup, x), pc);
+562,568c740,754
+<             while (!n.condition || getValue(execute(n.condition, x))) {
+<                 try {
+<                     execute(n.body, x);
+<                 } catch (e if e === BREAK_SIGNAL && x.target === n) {
+<                     break;
+<                 } catch (e if e === CONTINUE_SIGNAL && x.target === n) {
+<                     // Must run the update expression.
+---
+>             let whileCond = !n.condition || getValue(execute(n.condition, x), pc);
+>             evaluateEach(whileCond, function(c,x) {
+>                 while (c) {
+>                     try {
+>                         execute(n.body, x);
+>                     } catch (e if e === BREAK_SIGNAL && x.target === n) {
+>                         break;
+>                     } catch (e if e === CONTINUE_SIGNAL && x.target === n) {
+>                         // Must run the update expression.
+>                     }
+>                     n.update && getValue(execute(n.update, x), x.pc);
+>                     // FIXME: Label might become more secure over time.
+>                     c = !n.condition || getValue(execute(n.condition, x), x.pc);
+>                     if (c instanceof FacetedValue)
+>                         throw new Error('Unhandled case: condition became more secure');
+570,571c756
+<                 n.update && getValue(execute(n.update, x));
+<             }
+---
+>             }, x);
+580c765
+<             v = getValue(s);
+---
+>             v = getValue(s, pc);
+590c775
+<                 putValue(execute(r, x), a[i], r);
+---
+>                 putValue(execute(r, x), a[i], r, x.pc);
+602,610c787,802
+<             do {
+<                 try {
+<                     execute(n.body, x);
+<                 } catch (e if e === BREAK_SIGNAL && x.target === n) {
+<                     break;
+<                 } catch (e if e === CONTINUE_SIGNAL && x.target === n) {
+<                     continue;
+<                 }
+<             } while (getValue(execute(n.condition, x)));
+---
+>             let doWhileCond = !n.condition || getValue(execute(n.condition, x), pc);
+>             evaluateEach(doWhileCond, function(c,x) {
+>                 do {
+>                     try {
+>                         execute(n.body, x);
+>                     } catch (e if e === BREAK_SIGNAL && x.target === n) {
+>                         break;
+>                     } catch (e if e === CONTINUE_SIGNAL && x.target === n) {
+>                         // Must run the update expression.
+>                     }
+>                     // FIXME: Label might become more secure over time.
+>                     c = !n.condition || getValue(execute(n.condition, x), x.pc);
+>                     if (c instanceof FacetedValue)
+>                         throw new Error('Unhandled case: condition became more secure');
+>                 } while(c);
+>             }, x);
+634c826
+<                         if (t.guard && !getValue(execute(t.guard, x)))
+---
+>                         if (t.guard && !getValue(execute(t.guard, x), pc))
+649c841
+<             throw getValue(execute(n.exception, x));
+---
+>             throw getValue(execute(n.exception, x), pc);
+653c845
+<             x.result = n.value ? getValue(execute(n.value, x)) : undefined;
+---
+>             x.result = n.value ? getValue(execute(n.value, x), pc) : undefined;
+658,664c850,859
+<             t = toObject(getValue(r), r, n.object);
+<             x.scope = {object: t, parent: x.scope};
+<             try {
+<                 execute(n.body, x);
+<             } finally {
+<                 x.scope = x.scope.parent;
+<             }
+---
+>             t = getValue(r,pc);
+>             evaluateEach(t, function(t,x) {
+>                 let o = toObject(t, r, n.object);
+>                 x.scope = {object: o, parent: x.scope};
+>                 try {
+>                     execute(n.body, x);
+>                 } finally {
+>                     x.scope = x.scope.parent;
+>                 }
+>             }, x);
+668a864,877
+>             //FIXME: Real destructuring will be done by jsdesugar.js
+>             function initializeVar(x, varName, varValue, type) {
+>                 var s;
+>                 let bv = buildVal(x.pc, varValue, undefined);
+>                 for (s = x.scope; s; s = s.parent) {
+>                     if (hasDirectProperty(s.object, varName))
+>                         break;
+>                 }
+>                 if (type === CONST)
+>                     definitions.defineProperty(s.object, varName, bv, x.type !== EVAL_CODE, true);
+>                 else
+>                     s.object[varName] = bv;
+>             }
+> 
+670c879,898
+<             for (i = 0, j = c.length; i < j; i++) {
+---
+>             // destructuring assignments
+>             if (c[0].name && c[0].name.type === ARRAY_INIT) {
+>                 let init = c[0].initializer;
+>                 if (init.type === ARRAY_INIT) {
+>                     let initializers = init.children;
+>                     for (i = 0, j = initializers.length; i < j; i++) {
+>                         u = initializers[i];
+>                         t = c[0].name.children[i].value;
+>                         initializeVar(x, t, getValue(execute(u,x),pc), n.type);
+>                     }
+>                 }
+>                 else {
+>                     let arrVal = getValue(execute(init,x), pc);
+>                     for (i = 0, j = arrVal.length; i < j; i++) {
+>                         t = c[0].name.children[i].value;
+>                         initializeVar(x, t, arrVal[i], n.type);
+>                     }
+>                 }
+>             }
+>             else for (i = 0, j = c.length; i < j; i++) {
+675,683c903
+<                 for (s = x.scope; s; s = s.parent) {
+<                     if (hasDirectProperty(s.object, t))
+<                         break;
+<                 }
+<                 u = getValue(execute(u, x));
+<                 if (n.type === CONST)
+<                     definitions.defineProperty(s.object, t, u, x.type !== EVAL_CODE, true);
+<                 else
+<                     s.object[t] = u;
+---
+>                 initializeVar(x, t, getValue(execute(u,x), pc), n.type);
+692c912
+<                 x.result = getValue(execute(n.expression, x));
+---
+>                 x.result = getValue(execute(n.expression, x), pc);
+705c925
+<                 v = getValue(execute(c[i], x));
+---
+>                 v = getValue(execute(c[i], x), pc);
+713,714c933,934
+<                 u = getValue(r);
+<             v = getValue(execute(c[1], x));
+---
+>                 u = getValue(r, x.pc);
+>             v = getValue(execute(c[1], x), x.pc);
+716,728c936
+<                 switch (t) {
+<                   case BITWISE_OR:  v = u | v; break;
+<                   case BITWISE_XOR: v = u ^ v; break;
+<                   case BITWISE_AND: v = u & v; break;
+<                   case LSH:         v = u << v; break;
+<                   case RSH:         v = u >> v; break;
+<                   case URSH:        v = u >>> v; break;
+<                   case PLUS:        v = u + v; break;
+<                   case MINUS:       v = u - v; break;
+<                   case MUL:         v = u * v; break;
+<                   case DIV:         v = u / v; break;
+<                   case MOD:         v = u % v; break;
+<                 }
+---
+>                 v = evalBinOp(u, v, x, ops[t])
+730c938
+<             putValue(r, v, c[0]);
+---
+>             putValue(r, v, c[0], x.pc);
+735,736c943,947
+<             v = getValue(execute(c[0], x)) ? getValue(execute(c[1], x))
+<                                            : getValue(execute(c[2], x));
+---
+>             t = getValue(execute(c[0], x), pc);
+>             v = evaluateEach(t, function(t,x) {
+>                 return t ? getValue(execute(c[1], x), x.pc)
+>                          : getValue(execute(c[2], x), x.pc);
+>             }, x);
+741c952,963
+<             v = getValue(execute(c[0], x)) || getValue(execute(c[1], x));
+---
+>             v = getValue(execute(c[0], x), pc);
+>             if (v instanceof FacetedValue) {
+>                 let v2Thunk = function(pc) {
+>                     return getValue(execute(c[1],x), pc);
+>                 };
+>                 v = evaluateEach(v, function(v1, x) {
+>                     return v1 || v2Thunk(x.pc);
+>                 }, x);
+>             }
+>             else if (!v) {
+>                 v = getValue(execute(c[1], x), x.pc);
+>             }
+746c968,979
+<             v = getValue(execute(c[0], x)) && getValue(execute(c[1], x));
+---
+>             v = getValue(execute(c[0], x), pc);
+>             if (v instanceof FacetedValue) {
+>                 let v2Thunk = function(pc) {
+>                     return getValue(execute(c[1],x), pc);
+>                 };
+>                 v = evaluateEach(v, function(v1, x) {
+>                     return v1 && v2Thunk(x.pc);
+>                 }, x);
+>             }
+>             else if (v) {
+>                 v = getValue(execute(c[1], x), x.pc);
+>             }
+750,753d982
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) | getValue(execute(c[1], x));
+<             break;
+< 
+755,758d983
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) ^ getValue(execute(c[1], x));
+<             break;
+< 
+760,763d984
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) & getValue(execute(c[1], x));
+<             break;
+< 
+765,768d985
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) == getValue(execute(c[1], x));
+<             break;
+< 
+770,773d986
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) != getValue(execute(c[1], x));
+<             break;
+< 
+775,778d987
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) === getValue(execute(c[1], x));
+<             break;
+< 
+780,783d988
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) !== getValue(execute(c[1], x));
+<             break;
+< 
+785,788d989
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) < getValue(execute(c[1], x));
+<             break;
+< 
+790,793d990
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) <= getValue(execute(c[1], x));
+<             break;
+< 
+795,798d991
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) >= getValue(execute(c[1], x));
+<             break;
+< 
+800,803d992
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) > getValue(execute(c[1], x));
+<             break;
+< 
+805,818d993
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) in getValue(execute(c[1], x));
+<             break;
+< 
+<           case INSTANCEOF:
+<             c = n.children;
+<             t = getValue(execute(c[0], x));
+<             u = getValue(execute(c[1], x));
+<             if (isObject(u) && typeof u.__hasInstance__ === "function")
+<                 v = u.__hasInstance__(t);
+<             else
+<                 v = t instanceof u;
+<             break;
+< 
+820,823d994
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) << getValue(execute(c[1], x));
+<             break;
+< 
+825,828d995
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) >> getValue(execute(c[1], x));
+<             break;
+< 
+830,833d996
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) >>> getValue(execute(c[1], x));
+<             break;
+< 
+835,838d997
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) + getValue(execute(c[1], x));
+<             break;
+< 
+840,843d998
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) - getValue(execute(c[1], x));
+<             break;
+< 
+845,848d999
+<             c = n.children;
+<             v = getValue(execute(c[0], x)) * getValue(execute(c[1], x));
+<             break;
+< 
+849a1001
+>           case MOD:
+851c1003,1005
+<             v = getValue(execute(c[0], x)) / getValue(execute(c[1], x));
+---
+>             v1 = getValue(execute(c[0], x), pc);
+>             v2 = getValue(execute(c[1], x), pc);
+>             v = evalBinOp(v1, v2, x, ops[n.type]);
+854c1008
+<           case MOD:
+---
+>           case INSTANCEOF:
+856c1010,1017
+<             v = getValue(execute(c[0], x)) % getValue(execute(c[1], x));
+---
+>             t = getValue(execute(c[0], x), pc);
+>             u = getValue(execute(c[1], x), pc);
+>             v = evaluateEachPair(t, u, function(t, u, pc) {
+>                 if (isObject(u) && typeof u.__hasInstance__ === "function")
+>                     return u.__hasInstance__(t);
+>                 else
+>                     return t instanceof u;
+>             }, x);
+861c1022,1024
+<             v = !(t instanceof Reference) || delete t.base[t.propertyName];
+---
+>             v = evaluateEach(t, function(t,x) {
+>                 return !(t instanceof Reference) || delete t.base[t.propertyName];
+>             }, x);
+865c1028
+<             getValue(execute(n.children[0], x));
+---
+>             getValue(execute(n.children[0], x), pc);
+870,872c1033,1037
+<             if (t instanceof Reference)
+<                 t = t.base ? t.base[t.propertyName] : undefined;
+<             v = typeof t;
+---
+>             v = evaluateEach(t, function(t,x) {
+>                 if (t instanceof Reference)
+>                     t = t.base ? t.base[t.propertyName] : undefined;
+>                 return typeof t;
+>             }, x);
+876,878d1040
+<             v = !getValue(execute(n.children[0], x));
+<             break;
+< 
+880,882d1041
+<             v = ~getValue(execute(n.children[0], x));
+<             break;
+< 
+884,886d1042
+<             v = +getValue(execute(n.children[0], x));
+<             break;
+< 
+888c1044,1045
+<             v = -getValue(execute(n.children[0], x));
+---
+>             c = n.children;
+>             v = evalUnaryOp(c, x, n.type);
+894c1051
+<             u = Number(getValue(t));
+---
+>             u = getValue(t, pc);
+897c1054,1057
+<             putValue(t, (n.type === INCREMENT) ? ++u : --u, n.children[0]);
+---
+>             u = evaluateEach(u, function(u,x) {
+>                 let newVal = Number(n.type===INCREMENT ? u+1 : u-1);
+>                 return putValue(t, newVal, n.children[0], x.pc);
+>             }, x);
+905,907c1065,1072
+<             t = getValue(r);
+<             u = c[1].value;
+<             v = new Reference(toObject(t, r, c[0]), u, n);
+---
+>             t = getValue(r, pc);
+>             v = evaluateEach(t, function(t,x) {
+>                 u = c[1].value;
+>                 if (u==='charAt') {
+>                     this.THA = true;
+>                 }
+>                 return new Reference(toObject(t, r, c[0]), u, n);
+>             }, x);
+913,915c1078,1082
+<             t = getValue(r);
+<             u = getValue(execute(c[1], x));
+<             v = new Reference(toObject(t, r, c[0]), String(u), n);
+---
+>             t = getValue(r, pc);
+>             u = getValue(execute(c[1], x), pc);
+>             v = evaluateEachPair(t, u, function(t, u) {
+>                 return new Reference(toObject(t, r, c[0]), String(u), n);
+>             }, x);
+923c1090
+<                 u = getValue(execute(c[i], x));
+---
+>                 u = getValue(execute(c[i], x), pc);
+933,941c1100,1111
+<             f = getValue(r);
+<             x.staticEnv = n.staticEnv;
+<             if (isPrimitive(f) || typeof f.__call__ !== "function") {
+<                 throw new TypeError(r + " is not callable", c[0].filename, c[0].lineno);
+<             }
+<             t = (r instanceof Reference) ? r.base : null;
+<             if (t instanceof Activation)
+<                 t = null;
+<             v = f.__call__(t, a, x);
+---
+>             f = getValue(r, pc);
+>             //v = evaluateEach(f, function(f,x) {
+>             v = evaluateEachPair(f, r, function(f, r, x) {
+>                 x.staticEnv = n.staticEnv;
+>                 if (isPrimitive(f) || typeof f.__call__ !== "function") {
+>                     throw new TypeError(r + " is not callable", c[0].filename, c[0].lineno);
+>                 }
+>                 t = (r instanceof Reference) ? r.base : null;
+>                 if (t instanceof Activation)
+>                     t = null;
+>                 return f.__call__(t, a, x);
+>             }, x);
+948c1118
+<             f = getValue(r);
+---
+>             f = getValue(r, pc);
+955,958c1125,1130
+<             if (isPrimitive(f) || typeof f.__construct__ !== "function") {
+<                 throw new TypeError(r + " is not a constructor", c[0].filename, c[0].lineno);
+<             }
+<             v = f.__construct__(a, x);
+---
+>             v = evaluateEach(f, function(f,x) {
+>                 if (isPrimitive(f) || typeof f.__construct__ !== "function") {
+>                     throw new TypeError(r + " is not a constructor", c[0].filename, c[0].lineno);
+>                 }
+>                 return f.__construct__(a, x);
+>             }, x);
+966c1138
+<                     v[i] = getValue(execute(c[i], x));
+---
+>                     v[i] = getValue(execute(c[i], x), pc);
+978c1150
+<                     v[c2[0].value] = getValue(execute(c2[1], x));
+---
+>                     v[c2[0].value] = getValue(execute(c2[1], x), pc);
+1025a1198,1200
+>         // For some odd reasons, faceted values sometimes forget their class.
+>         // We rebuild them here if needed.
+>         //v = rebuild(v);
+1026a1202,1207
+>         /*
+>         } catch(e if !isSignal(e)) {
+>             alert('Caught e: ' + e + ' \nn: ' + n);
+>             throw END_SIGNAL;
+>         }
+>         */
+1047c1228,1230
+<         definitions.defineProperty(this, "prototype", proto, true);
+---
+>         //FIXME: should be read only, but this was causing some problems in dom.js.
+>         //definitions.defineProperty(this, "prototype", proto, true);
+>         definitions.defineProperty(this, "prototype", proto);
+1168c1351
+<             var x2 = new ExecutionContext(FUNCTION_CODE, x.version);
+---
+>             var x2 = new ExecutionContext(FUNCTION_CODE, x.pc, x.version);
+1253c1436,1437
+<             var a = Array.prototype.splice.call(arguments, 1);
+---
+>             //var a = Array.prototype.splice.call(arguments, 1);
+>             var a = Array.prototype.slice.call(arguments, 1);
+1269,1270c1453,1474
+<                                        a = Array.prototype.splice.call(a, 0, a.length);
+<                                        return this.apply(t, a);
+---
+>                                        //FIXME: Need support for faceted arguments here
+>                                        //a = Array.prototype.splice.call(a, 0, a.length);
+>                                        a = Array.prototype.slice.call(a, 0, a.length);
+>                                        if (!definitions.isNativeCode(this)) {
+>                                            return this.apply(t, a);
+>                                        }
+>                                        var thisObj = this;
+>                                        switch (a.length) {
+>                                          case 1:
+>                                             return evaluateEach(rebuild(a[0],x.pc), function(v,x) {
+>                                                return thisObj.call(t, v);
+>                                             }, x);
+>                                          case 2:
+>                                             return evaluateEachPair(strip(a[0],x.pc), strip(a[1],x.pc),
+>                                                 function(v1,v2,x) {
+>                                                     return thisObj.call(t, v1, v2);
+>                                                 }, x);
+>                                          //No support for more than 2 FV
+>                                          //arguments for native functions
+>                                          default:
+>                                             return thisObj.apply(t, a);
+>                                        }
+1274c1478,1479
+<                                        a = Array.prototype.splice.call(a, 0, a.length);
+---
+>                                        //a = Array.prototype.splice.call(a, 0, a.length);
+>                                        a = Array.prototype.slice.call(a, 0, a.length);
+1279c1484,1485
+<                                        a = Array.prototype.splice.call(a, 0, a.length);
+---
+>                                        //a = Array.prototype.splice.call(a, 0, a.length);
+>                                        a = Array.prototype.slice.call(a, 0, a.length);
+1323c1529
+<         var x = new ExecutionContext(GLOBAL_CODE, Narcissus.options.version);
+---
+>         var x = new ExecutionContext(GLOBAL_CODE, new ProgramCounter(), Narcissus.options.version);
+1411c1617
+<         var x = new ExecutionContext(GLOBAL_CODE, Narcissus.options.version);
+---
+>         var x = new ExecutionContext(GLOBAL_CODE, new ProgramCounter(), Narcissus.options.version);
+1480c1686,1687
+<         test: test
+---
+>         test: test,
+>         getPC: getPC
+diff ../narcissus/lib/jsparse.js zaphod/chrome/content/narcissus/jsparse.js
+83a84
+>                 sub.name = sub.value;
+Only in ../narcissus/lib/: lexer.js
+Only in ../narcissus/lib/: parser.js
