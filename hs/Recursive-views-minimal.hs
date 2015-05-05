@@ -1,11 +1,12 @@
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Foo where
 
-import Control.Monad.State
-import Control.Monad.Identity
+import "mzv" Control.Monad.State
+import "mzv" Control.Monad.Identity
 import Control.Monad.Mask
 import Control.Monad.Views
 
