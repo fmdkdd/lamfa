@@ -2039,6 +2039,16 @@ issue.  Maybe use type classes?
 
 See [[file:hs/implicit][implicit]].
 
+**** Facets as a monad
+The faceted evaluation strategy requires a new state global: the program
+counter.  It makes sense to add this state in a state monad to a monadic
+interpreter.  This can be done using monad transformers, or monad views, or
+whatever is more convenient.
+
+But maybe we can also view facet values themselves as a specific case of the
+list monad.
+
+See [[file:hs/list-monad/][list-monad]].
 
 *** Extending the syntax
 See [[file:hs/transform/notes.org]]
