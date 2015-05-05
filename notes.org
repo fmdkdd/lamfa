@@ -2026,6 +2026,10 @@ Re-reading Swiestra in 2015, my brain parses it much better.
   approach, modifying behavior requires defining a new algebra.  Can we re-use
   parts of a previous algebra?  There is no clue as to how to achieve that in
   this paper.
+- Having terms appear in the signature to programs gives you guarantees for
+  free.  As illustrated in the paper, a program of type =Term Recall Int= (\sect6)
+  will never modify the value of the memory cell.  Also the topic of \sect7, and
+  related work on type systems for effects.
 
 
 *** Extending the syntax
