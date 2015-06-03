@@ -2005,31 +2005,7 @@ Cons:
 - Cannot change the resulting value with using the same approach for
   the value type, which would be even /hairier/.
 
-**** Data types  à la carte (2015)
-Re-reading Swiestra in 2015, my brain parses it much better.
-
-- Coproduct is just disjoint-union.
-- Construction of values of the coproduct type are unwieldy, hence the recourse
-  to type classes that will automatically call the right injection into the
-  coproduct based on the type of the expression.  Expression types are required,
-  otherwise the compiler cannot find the right injection.
-
-  The use class constraints and instances to automatically figure out the right
-  injection is quite clever.
-- Can’t we derive functors, for the coproduct, since they seem rather
-  straightforward?  We can.  Probably `deriving Functor` was not available in
-  Haskell in 2008, when Swierstra wrote it.
-- We can give a larger type signature than necessary, since the compiler cannot
-  infer it for us.  =Add :+: Val :+: Add :+: Val= is perfectly acceptable.  In
-  practice, this is harmless.
-- While we can easily extend the language and compose languages using this
-  approach, modifying behavior requires defining a new algebra.  Can we re-use
-  parts of a previous algebra?  There is no clue as to how to achieve that in
-  this paper.
-- Having terms appear in the signature to programs gives you guarantees for
-  free.  As illustrated in the paper, a program of type =Term Recall Int= (\sect6)
-  will never modify the value of the memory cell.  Also the topic of \sect7, and
-  related work on type systems for effects.
+See also my [[Data types  à la carte (2015)][my second attempt]] at Swierstra, in 2015.
 
 **** Implicit arguments
 A simple idea: implicit arguments can replace global variables.
@@ -2097,6 +2073,58 @@ modules and design patterns.
   the Expression Families Problem.  2009
 - Brudo C.d.S. Oliveira, William R. Cook.  Extensibility for the Masses --
   Practical Extensibility with Object Algebras.  2012
+
+**** Data types  à la carte (2015)
+Re-reading Swiestra in 2015, my brain parses it much better.
+
+- Coproduct is just disjoint-union.
+- Construction of values of the coproduct type are unwieldy, hence the recourse
+  to type classes that will automatically call the right injection into the
+  coproduct based on the type of the expression.  Expression types are required,
+  otherwise the compiler cannot find the right injection.
+
+  The use class constraints and instances to automatically figure out the right
+  injection is quite clever.
+- Can’t we derive functors, for the coproduct, since they seem rather
+  straightforward?  We can.  Probably `deriving Functor` was not available in
+  Haskell in 2008, when Swierstra wrote it.
+- We can give a larger type signature than necessary, since the compiler cannot
+  infer it for us.  =Add :+: Val :+: Add :+: Val= is perfectly acceptable.  In
+  practice, this is harmless.
+- While we can easily extend the language and compose languages using this
+  approach, modifying behavior requires defining a new algebra.  Can we re-use
+  parts of a previous algebra?  There is no clue as to how to achieve that in
+  this paper.
+- Having terms appear in the signature to programs gives you guarantees for
+  free.  As illustrated in the paper, a program of type =Term Recall Int= (\sect6)
+  will never modify the value of the memory cell.  Also the topic of \sect7, and
+  related work on type systems for effects.
+
+**** Wadler — The essence of functional programming
+How to build a monadic interpreter.  Also serves as a tutorial on monads.
+
+An interpreter just creates computations inside a monad M.  By changing the
+definition of M (its type, unit and bind) /and other small changes/, one is able
+to change the evaluation order of arguments (from call-by-value to
+call-by-name), or give a non-deterministic interpreter.
+
+Plugging the identity monad reduces the monadic interpreter to a straightforward
+lambda-calculus interpreter, showing that the monadic interpreter is a
+generalization.
+
+Variation one already requires changes in addition to redefining the monad.
+This is inevitable to be able to distinguish between calls of =unitM= that
+signal errors from calls that produce ground values.
+
+Variation two requires to extend the =interp= function.  The current position is
+saved in the =P= monad, which is akin to a “forgetful” state monad.
+
+One important observation on monadic interpreters is that if the interpreter
+code needs to interact with the monad (e.g., for resetting the current
+position), then the =interp= code needs to make a call to =resetP=.  Monads are
+not oblivious at all in this case.  But if the interpreter code does not need to
+interact with the monad, then changes to the monad can affect the meaning of the
+interpreter in an oblivious fashion.
 
 *** The bigger picture
 In the solutions from the functional programming world, the idea seems to
