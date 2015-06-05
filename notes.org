@@ -1,3 +1,5 @@
+# -*- org-confirm-babel-evaluate: nil -*-
+
 * The problem
 Say we have a monadic interpreter for a toy language.  We want to
 instrument this interpreter: modify the rules to create additional
@@ -2986,8 +2988,3 @@ Family polymorphism?
 http://www.cs.uu.nl/foswiki/pub/Center/AspectAG/paper-icfp.pdf
 
 http://www.dblp.org/rec/bibtex/conf/haskell/StefanRMM11
-
-
-# Local Variables:
-# org-confirm-babel-evaluate: nil
-# End:

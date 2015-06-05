@@ -1,3 +1,4 @@
+# -*- org-confirm-babel-evaluate: nil -*-
 #+PROPERTY: header-args :results output :noweb yes
 # C-c C-v C-b org-babel-execute-buffer
 # C-c C-x C-M-v org-redisplay-inline-images
@@ -774,9 +775,6 @@ If names refer to some objects statically, then to others dynamically,
 then you have flexibility, at the price of a more complex system.
 Security is harder to guarantee.
 
-# Local Variables:
-# org-confirm-babel-evaluate: nil
-# End:
 ** An objection by Pierce and Harper
 Good points are made about modules in [[http://www.cis.upenn.edu/~bcpierce/papers/modules-icfp.ps][Advanced Module Systems]].  They
 conclude that /generic references/ are needed for flexibility (making
