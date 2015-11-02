@@ -1,0 +1,8 @@
+* An eval variant for constants
+
+#+NAME: eval-c
+#+BEGIN_SRC js
+c({n}, env) {
+  return n + 2
+},
+#+END_SRC

@@ -1,0 +1,53 @@
+Proof of concept of using noweb references for creating interpreter variants.
+
+* The whole interpreter
+
+#+NAME: eval
+#+BEGIN_SRC js :noweb no-export :tangle eval.js
+let v = (x) => ({type: 'v', x})
+let c = (n) => ({type: 'c', n})
+let lam = (x, body) => ({type: 'lam', x, body})
+let app = (f, x) => ({type: 'app', f, x})
+
+function interp(n, env) {
+  let f = nodes[n.type]
+  if (f)
+    return f(n, env)
+  else
+    throw 'Unknown node type'
+}
+
+var nodes = {
+  v({x}, env) {
+    return env[x]
+  },
+
+  <<eval-c>>
+
+  lam(l, env) {
+    return l
+  },
+}
+#+END_SRC
+
+* The default eval for constants
+
+#+NAME: eval-c
+#+BEGIN_SRC js
+c({n}, env) {
+  return n
+},
+#+END_SRC
+
+* Tests
+
+#+BEGIN_SRC js :results output stderr :noweb strip-export
+<<eval>>
+
+let p1 = c(0)
+
+print(interp(p1))
+#+END_SRC
+
+#+RESULTS:
+: 0
