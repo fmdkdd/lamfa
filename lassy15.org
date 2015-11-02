@@ -1080,6 +1080,47 @@ function, or at least return a subtype of it).  But once again, we
 don’t want to erase the previous module; we want to have both the base
 and extension existing at runtime, so that we can switch between them.
 
+*** Related work
+This is the list of related papers from PLDI and POPL, according to
+[[tmpl.weaselhat.com]].
+
+- What are principal typings and what are they good for? - Trevor Jim
+  (POPL 1996) (1.707077)
+- Soft typing - Robert Cartwright, Mike Fagan (PLDI 1991) (1.707077)
+- A type system for Java bytecode subroutines - Raymie Stata, Martín Abadi
+  (POPL 1998) (1.804110)
+- Type checking higher-order polymorphic multi-methods - François Bourdoncle,
+  Stephan Merz (POPL 1997) (1.819652)
+- Objective ML: a simple object-oriented extension of ML - Didier Rémy, Jérôme
+  Vouillon (POPL 1997) (1.924352)
+- Parameterized types for Java - Joseph A. Bank, Andrew C. Myers, Barbara Liskov
+  (POPL 1997) (2.021673)
+- Types as abstract interpretations - Patrick Cousot (POPL 1997) (2.021673)
+- Typed closure conversion - Yasuhiko Minamide, Greg Morrisett, Robert Harper
+  (POPL 1996) (2.021673)
+- Putting type annotations to work - Martin Odersky, Konstantin Läufer
+  (POPL 1996) (2.021673)
+- Subtyping recursive types - Roberto M. Amadio, Luca Cardelli (POPL 1991)
+  (2.021673)
+- Once upon a polymorphic type - Keith Wansbrough, Simon Peyton Jones
+  (POPL 1999) (2.021673)
+- Local type inference - Benjamin C. Pierce, David N. Turner (POPL 1998)
+  (2.021673)
+- Refinement types for ML - Tim Freeman, Frank Pfenning (PLDI 1991) (2.021673)
+- A simple, comprehensive type system for Java bytecode subroutines - Robert
+  O'Callahan (POPL 1999) (2.031840)
+- From polyvariant flow information to intersection and union types - Jens
+  Palsberg, Christina Pavlopoulou (POPL 1998) (2.034866)
+- Efficient applicative data types - Eugene W. Myers (POPL 1984) (2.255209)
+- Structural subtyping and the notion of power type - L. Cardelli (POPL 1988)
+  (2.255209)
+- Abstract types have existential types - John C. Mitchell, Gordon D. Plotkin
+  (POPL 1985) (2.255209)
+- Recursively defined data types: part 1 - C. H. Lewis, B. K. Rosen (POPL 1973)
+  (2.255209)
+- Principal type-schemes for functional programs - Luis Damas, Robin Milner
+  (POPL 1982) (2.255209)
+
 * Extension
 ** Adding another variant after =show=
 If =show= is defined only for =num= and =plus=, but we define =minus=
