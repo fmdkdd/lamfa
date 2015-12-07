@@ -1,0 +1,444 @@
+# -*- org-confirm-babel-evaluate: nil; org-babel-use-quick-and-dirty-noweb-expansion: t -*-
+
+#+PROPERTY: header-args :noweb yes
+
+Lambda-calculus interpreter written using the interpreter pattern of the Gang of
+Four.  Each AST node is an object with an ~interpret(context)~ function.
+
+* Lambda standard
+#+NAME: lambda-standard/ast-nodes
+#+BEGIN_SRC js
+function bot() { return BOT }
+function c(e) { return {__proto__: CONST, e} }
+function v(e) { return {__proto__: VAR, e} }
+function fun(argName, body) { return {__proto__: FUN, argName, body} }
+function app(fun, arg) { return {__proto__: APP, fun, arg} }
+function ref(e) { return {__proto__: REF, e} }
+function deref(e) { return {__proto__: DEREF, e} }
+function assign(left, right) { return {__proto__: ASSIGN, left, right} }
+
+var BOT = {
+  execute(context) {
+    return bottom }}
+
+var CONST = {
+  execute(context) {
+    return this.e }}
+
+var VAR = {
+  execute(context) {
+    return context.scope[this.e] }}
+
+var FUN = {
+  execute(context) {
+    return new FunctionObject(this, context.scope) }}
+
+var APP = {
+  execute(context) {
+    var f = this.fun.execute(context)
+    var a = this.arg.execute(context)
+    return f._call(a, context) }}
+
+var REF = {
+  execute(context) {
+    var r = this.e.execute(context)
+    var a = context.store.add(r)
+    return new Address(a) }}
+
+var DEREF = {
+  execute(context) {
+    var a = this.e.execute(context)
+    return a.deref(context) }}
+#+END_SRC
+
+#+NAME: lambda-standard/interpreter
+#+BEGIN_SRC js
+var bottom = {
+  toString() { return 'BOT' },
+  _call(arg, context) { return this },
+  deref(context) { return this },
+}
+
+function Address(a) { this.a = a }
+
+Address.prototype.deref = function(context) {
+  return context.store.retrieve(this.a)
+}
+
+function ExecutionContext(scope = {}, store = new Store()) {
+  this.scope = scope
+  this.store = store
+}
+
+function Store() { this.refs = [] }
+
+Store.prototype.add = function(value) {
+  this.refs.push(value)
+  return this.refs.length - 1
+}
+
+Store.prototype.retrieve = function(addr) {
+  return this.refs[addr]
+}
+
+function FunctionObject(node, scope) {
+  this.node = node
+  this.scope = scope
+}
+
+FunctionObject.prototype.toString = function() {
+  return '<func>'
+}
+
+FunctionObject.prototype._call = function(arg, context) {
+  var x = new ExecutionContext(Object.create(context.scope), context.store)
+  x.scope[this.node.argName] = arg
+  return this.node.body.execute(x)
+}
+
+function run(node) {
+  return node.execute(new ExecutionContext())
+}
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-standard/ast-nodes>>
+<<lambda-standard/interpreter>>
+
+print(run(app(fun('x', v('x')), c(42))) === 42)
+print(run(bot()) === bottom)
+print(run(app(bot(), c(42))) === bottom)
+print(run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(run(deref(bot())) === bottom)
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+
+Bottom is a singleton, since there is no need to duplicate it.
+
+Maybe the ~FUN~ AST node object should copy the context scope rather than get a
+reference to it.
+
+The separation AST node and interpreter is not as clear, since AST nodes require
+refer to AST objects, which in turn refer to value objects that were defined in
+the interpreter module in the [[file:lamfa-narcissus-style.org][Narcissus style interpreter]].  Here I put
+everything in the global scope.
+
+* Lambda standard with modules
+This is more like it.
+
+#+NAME: lambda-standard-module/ast-nodes
+#+BEGIN_SRC js
+function bot() { return interpreter.BOT }
+function c(e) { return {__proto__: interpreter.CONST, e} }
+function v(e) { return {__proto__: interpreter.VAR, e} }
+function fun(argName, body) { return {__proto__: interpreter.FUN, argName, body} }
+function app(fun, arg) { return {__proto__: interpreter.APP, fun, arg} }
+function ref(e) { return {__proto__: interpreter.REF, e} }
+function deref(e) { return {__proto__: interpreter.DEREF, e} }
+function assign(left, right) { return {__proto__: interpreter.ASSIGN, left, right} }
+#+END_SRC
+
+#+NAME: lambda-standard-module/AST-objects
+#+BEGIN_SRC js
+var BOT = {
+  execute(context) {
+    return bottom }}
+
+var CONST = {
+  execute(context) {
+    return this.e }}
+
+var VAR = {
+  execute(context) {
+    return context.scope[this.e] }}
+
+var FUN = {
+  execute(context) {
+    return new FunctionObject(this, context.scope) }}
+
+var APP = {
+  execute(context) {
+    var f = this.fun.execute(context)
+    var a = this.arg.execute(context)
+    return f._call(a, context) }}
+
+var REF = {
+  execute(context) {
+    var r = this.e.execute(context)
+    var a = context.store.add(r)
+    return new Address(a) }}
+
+var DEREF = {
+  execute(context) {
+    var a = this.e.execute(context)
+    return a.deref(context) }}
+#+END_SRC
+
+#+NAME: lambda-standard-module/value-objects
+#+BEGIN_SRC js
+var bottom = {
+  toString() { return 'BOT' },
+  _call(arg, context) { return this },
+  deref(context) { return this },
+}
+
+function Address(a) { this.a = a }
+
+Address.prototype.deref = function(context) {
+  return context.store.retrieve(this.a)
+}
+
+function ExecutionContext(scope = {}, store = new Store()) {
+  this.scope = scope
+  this.store = store
+}
+
+function Store() { this.refs = [] }
+
+Store.prototype.add = function(value) {
+  this.refs.push(value)
+  return this.refs.length - 1
+}
+
+Store.prototype.retrieve = function(addr) {
+  return this.refs[addr]
+}
+
+function FunctionObject(node, scope) {
+  this.node = node
+  this.scope = scope
+}
+
+FunctionObject.prototype.toString = function() {
+  return '<func>'
+}
+
+FunctionObject.prototype._call = function(arg, context) {
+  var x = new ExecutionContext(Object.create(context.scope), context.store)
+  x.scope[this.node.argName] = arg
+  return this.node.body.execute(x)
+}
+#+END_SRC
+
+#+NAME: lambda-standard-module/interpreter
+#+BEGIN_SRC js
+var interpreter = (function(){
+  <<lambda-standard-module/AST-objects>>
+
+  <<lambda-standard-module/value-objects>>
+
+  function run(node) {
+    return node.execute(new ExecutionContext())
+  }
+
+  return {
+    run,
+    bottom, Address, Store,
+    BOT, CONST, VAR, FUN, APP, REF, DEREF,
+  }
+}())
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-standard-module/AST-nodes>>
+<<lambda-standard-module/interpreter>>
+
+print(interpreter.run(app(fun('x', v('x')), c(42))) === 42)
+print(interpreter.run(bot()) === interpreter.bottom)
+print(interpreter.run(app(bot(), c(42))) === interpreter.bottom)
+print(interpreter.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(interpreter.run(deref(bot())) === interpreter.bottom)
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+
+* Extending the interpreter with facets
+Can we extend the definitions without copy-pasting the interpreter?
+
+#+NAME: lambda-facet/facet-definitions
+#+BEGIN_SRC js
+function Facet(k, vh, vl) {
+  this.k = k
+  this.vh = vh
+  this.vl = vl
+}
+
+function constructFacet(pc, vh, vl) {
+  if (pc.length === 0)
+    return vh
+
+  var k = pc[0]
+  var rest = pc.slice(1)
+
+  if (pc[0] > 0)
+    return new Facet(k, constructFacet(rest, vh, vl), vl)
+  else
+    return new Facet(-k, vl, constructFacet(rest, vh, vl))
+}
+
+Facet.prototype.toString = function() {
+  return `<${this.k} ? ${this.vh} : ${this.vl}>`
+}
+
+function evaluateEach(v, x, f) {
+  var vh, vl
+  var pc = x.pc
+
+  if (v instanceof Facet) {
+    if (v.k in x.pc)
+      return evaluateEach(v.vh, x, f)
+    else if (-v.k in x.pc)
+      return evaluateEach(v.vl, x, f)
+    else {
+      x.pc[v.k] = true
+      vh = evaluateEach(v.vh, x, f)
+      x.pc[-v.k] = true
+      vl = evaluateEach(v.vl, x, f)
+      x.pc = pc
+
+      return new Facet(v.k, vh, vl)
+    }
+  }
+  else
+    return f(v, x)
+}
+#+END_SRC
+
+Just changing what AST object is returned by the AST construction function is
+enough to modify the interpreter.  Since now the ~interpret~ functions are
+separated, we can change one without having to redefine all the others.
+
+#+NAME: lambda-facet/ast-objects-extension
+#+BEGIN_SRC js
+var APP = {
+  execute(context) {
+    var f = this.fun.execute(context)
+    var a = this.arg.execute(context)
+    return evaluateEach(f, context, (f, x) => f._call(a, x)) }}
+
+var REF = {
+  execute(context) {
+    var r = this.e.execute(context)
+    var a = context.store.add(r)
+    return constructFacet(context.pc,
+                          new interpreter.Address(a),
+                          interpreter.bottom) }}
+
+var DEREF = {
+  execute(context) {
+    var a = this.e.execute(context)
+    return evaluateEach(a, context, (a, x) => a.deref(context)) }}
+#+END_SRC
+
+#+NAME: lambda-facet/interpreter
+#+BEGIN_SRC js
+var interpreter = (function(){
+  <<lambda-standard-module/interpreter>>
+
+  <<lambda-facet/ast-objects-extension>>
+
+  function ExecutionContext(scope = {}, store = new interpreter.Store(), pc = []) {
+    this.scope = scope
+    this.store = store
+    this.pc = pc
+  }
+
+  function FunctionObject(node, scope) {
+    this.node = node
+    this.scope = scope
+  }
+
+  FunctionObject.prototype.toString = function() {
+    return '<func>'
+  }
+
+  FunctionObject.prototype._call = function(arg, x) {
+    var x2 = new ExecutionContext(Object.create(x.scope), x.store, x.pc)
+    x2.scope[this.node.argName] = arg
+    return this.node.body.execute(x2)
+  }
+
+  var FUN = {
+    execute(context) {
+      return new FunctionObject(this, context.scope) }}
+
+  function run(ast) {
+    return ast.execute(new ExecutionContext())
+  }
+
+  function runWithPC(ast, pc) {
+    var x = new ExecutionContext()
+    x.pc = pc
+    return ast.execute(x)
+  }
+
+  return {
+    __proto__: interpreter,
+    APP, REF, DEREF, FUN,
+    run,
+    runWithPC,
+  }
+}())
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-standard-module/ast-nodes>>
+<<lambda-facet/facet-definitions>>
+<<lambda-facet/interpreter>>
+
+print(interpreter.run(app(fun('x', v('x')), c(42))) === 42)
+print(interpreter.run(bot()) === interpreter.bottom)
+print(interpreter.run(app(bot(), c(42))) === interpreter.bottom)
+print(interpreter.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(interpreter.run(deref(bot())) === interpreter.bottom)
+
+print(interpreter.runWithPC(
+  app(fun('x', deref(v('x'))),
+      ref(c(42))),
+  [1]))
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+: <1 ? 42 : BOT>
+
+Look at all I’ve got to override!  For the AST objects, it’s okay, but for the
+value objects we need to add the ~pc~ field to ~ExecutionObject~, and that leads
+to redefining ~FunctionObject~, which in turn means we need to redefine the FUN
+AST object just to update the binding.
+
+Okay, maybe /subclassing/ ~FunctionObject~ was enough to do it.  But still, I
+should not have to redefine FUN.  This is caused by the premature coupling
+between ~FUN~ and ~FunctionObject~.  There are multiple ways to solve this
+coupling: parameterize the ~interpreter~ module for the value objects:
+
+: var interpreter = function(FunctionObject) { ... }
+
+or define them outside the module and make an indirect call:
+
+: return new valueObjects.FunctionObject(...)
+
+or use a factory:
+
+: return interpreter.mkFunctionObject(...)
+
+All amount to the same, really.  It’s just adding a level of indirection to the
+reference to ~FunctionObject~ in order to be able to change it in the facet
+interpreter.
+
+* Lambda facets extensible

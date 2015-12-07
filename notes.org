@@ -165,7 +165,6 @@ hackish, and will potentially break if the incompatible package is updated, but
 I’m not sure there is a way to improve on that.  Testing if a package is present
 is at least a clean way to separate these shims from the main code.
 
-
 * The problem
 Say we have a monadic interpreter for a toy language.  We want to
 instrument this interpreter: modify the rules to create additional

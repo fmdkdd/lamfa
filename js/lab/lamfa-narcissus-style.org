@@ -34,15 +34,9 @@ var interpreter = (function(){
     return context.store.retrieve(this.a)
   }
 
-  function ExecutionContext(parent) {
-    if (parent) {
-      this.scope = Object.create(parent.scope)
-      this.store = parent.store
-    }
-    else {
-      this.scope = {}
-      this.store = new Store()
-    }
+  function ExecutionContext(scope = {}, store = new Store()) {
+    this.scope = scope
+    this.store = store
   }
 
   function Store() { this.refs = [] }
@@ -61,8 +55,12 @@ var interpreter = (function(){
     this.scope = scope
   }
 
+  FunctionObject.prototype.toString = function() {
+    return '<func>'
+  }
+
   FunctionObject.prototype._call = function(arg, context) {
-    var x = new ExecutionContext(context)
+    var x = new ExecutionContext(Object.create(context.scope), context.store)
     x.scope[this.node.argName] = arg
     return execute(this.node.body, x)
   }
@@ -214,17 +212,10 @@ var interpreter = (function(){
     return context.store.retrieve(this.a)
   }
 
-  function ExecutionContext(parent) {
-    if (parent) {
-      this.scope = Object.create(parent.scope)
-      this.store = parent.store
-      this.pc = parent.pc
-    }
-    else {
-      this.scope = {}
-      this.store = new Store()
-      this.pc = []
-    }
+  function ExecutionContext(scope = {}, store = new Store(), pc = []) {
+    this.scope = scope
+    this.store = store
+    this.pc = pc
   }
 
   function Store() { this.refs = [] }
@@ -247,10 +238,10 @@ var interpreter = (function(){
     return '<func>'
   }
 
-  FunctionObject.prototype._call = function(arg, context) {
-    var x = new ExecutionContext(context)
-    x.scope[this.node.argName] = arg
-    return execute(this.node.body, x)
+  FunctionObject.prototype._call = function(arg, x) {
+    var x2 = new ExecutionContext(Object.create(x.scope), x.store, x.pc)
+    x2.scope[this.node.argName] = arg
+    return execute(this.node.body, x2)
   }
 
   function execute(node, context) {
@@ -337,7 +328,6 @@ print(interpreter.runWithPC(
 : true
 : true
 : <1 ? 42 : BOT>
-
 
 * Diff between the two
 
