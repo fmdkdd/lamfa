@@ -418,9 +418,9 @@ print(interpreter.runWithPC(
 : <1 ? 42 : BOT>
 
 Look at all I’ve got to override!  For the AST objects, it’s okay, but for the
-value objects we need to add the ~pc~ field to ~ExecutionObject~, and that leads
-to redefining ~FunctionObject~, which in turn means we need to redefine the FUN
-AST object just to update the binding.
+value objects we need to add the ~pc~ field to ~ExecutionContext~, and that
+leads to redefining ~FunctionObject~, which in turn means we need to redefine
+the FUN AST object just to update the binding.
 
 Okay, maybe /subclassing/ ~FunctionObject~ was enough to do it.  But still, I
 should not have to redefine FUN.  This is caused by the premature coupling
@@ -439,6 +439,265 @@ or use a factory:
 
 All amount to the same, really.  It’s just adding a level of indirection to the
 reference to ~FunctionObject~ in order to be able to change it in the facet
-interpreter.
+interpreter.  Note that factories are unnecessary in JavaScript, since we can
+directly pass constructors as values.
 
-* Lambda facets extensible
+Actually, we can see that the change to ~FunctionObject~ is just passing an
+additional argument to ~ExecutionContext~, so we could make the
+~ExecutionContext~ constructor inherit from a parent context to avoid redefining
+~FunctionObject~.  Still, we would need to inject this new ~ExecutionContext~
+into the new version of the interpreter.
+
+But we need to adapt the standard interpreter for that to work.
+
+* Lambda standard Mk3
+
+#+NAME: lambda-standard-mk3/AST-nodes
+#+BEGIN_SRC js
+function bot() { return interpreter.BOT }
+function c(e) { return {__proto__: interpreter.CONST, e} }
+function v(e) { return {__proto__: interpreter.VAR, e} }
+function fun(argName, body) { return {__proto__: interpreter.FUN, argName, body} }
+function app(fun, arg) { return {__proto__: interpreter.APP, fun, arg} }
+function ref(e) { return {__proto__: interpreter.REF, e} }
+function deref(e) { return {__proto__: interpreter.DEREF, e} }
+function assign(left, right) { return {__proto__: interpreter.ASSIGN, left, right} }
+#+END_SRC
+
+#+NAME: lambda-standard-mk3/AST-objects
+#+BEGIN_SRC js
+var BOT = {
+  execute(context) {
+    return interpreter.bottom }}
+
+var CONST = {
+  execute(context) {
+    return this.e }}
+
+var VAR = {
+  execute(context) {
+    return context.scope[this.e] }}
+
+var FUN = {
+  execute(context) {
+    return new interpreter.FunctionObject(this, context.scope) }}
+
+var APP = {
+  execute(context) {
+    var f = this.fun.execute(context)
+    var a = this.arg.execute(context)
+    return f._call(a, context) }}
+
+var REF = {
+  execute(context) {
+    var r = this.e.execute(context)
+    var a = context.store.add(r)
+    return new interpreter.Address(a) }}
+
+var DEREF = {
+  execute(context) {
+    var a = this.e.execute(context)
+    return a.deref(context) }}
+#+END_SRC
+
+#+NAME: lambda-standard-mk3/value-objects
+#+BEGIN_SRC js
+var bottom = {
+  toString() { return 'BOT' },
+  _call(arg, context) { return this },
+  deref(context) { return this },
+}
+
+function Address(a) { this.a = a }
+
+Address.prototype.deref = function(context) {
+  return context.store.retrieve(this.a)
+}
+
+function ExecutionContext(scope = {}, store = new Store()) {
+  this.scope = scope
+  this.store = store
+}
+
+function Store() { this.refs = [] }
+
+Store.prototype.add = function(value) {
+  this.refs.push(value)
+  return this.refs.length - 1
+}
+
+Store.prototype.retrieve = function(addr) {
+  return this.refs[addr]
+}
+
+function FunctionObject(node, scope) {
+  this.node = node
+  this.scope = scope
+}
+
+FunctionObject.prototype.toString = function() {
+  return '<func>'
+}
+
+FunctionObject.prototype._call = function(arg, x) {
+  var x2 = new interpreter.ExecutionContext(Object.create(x.scope), x.store)
+  x.scope[this.node.argName] = arg
+  return this.node.body.execute(x2)
+}
+#+END_SRC
+
+#+NAME: lambda-standard-mk3/interpreter
+#+BEGIN_SRC js
+var interpreter = (function(){
+  <<lambda-standard-mk3/AST-objects>>
+  <<lambda-standard-mk3/value-objects>>
+
+  function run(node) {
+    return node.execute(new interpreter.ExecutionContext())
+  }
+
+  return {
+    BOT, CONST, VAR, FUN, APP, REF, DEREF,
+    bottom, Address, ExecutionContext, Store, FunctionObject,
+    run,
+  }
+}())
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-standard-mk3/AST-objects>>
+<<lambda-standard-mk3/value-objects>>
+<<lambda-standard-mk3/interpreter>>
+<<lambda-standard-mk3/AST-nodes>>
+
+print(interpreter.run(app(fun('x', v('x')), c(42))) === 42)
+print(interpreter.run(bot()) === interpreter.bottom)
+print(interpreter.run(app(bot(), c(42))) === interpreter.bottom)
+print(interpreter.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(interpreter.run(deref(bot())) === interpreter.bottom)
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+
+And now, to add the facets changes.
+
+#+NAME: lambda-facets-mk3/interpreter
+#+BEGIN_SRC js
+var interpreter = (function(){
+  <<lambda-standard-mk3/interpreter>>
+
+  var APP = {
+    execute(context) {
+      var f = this.fun.execute(context)
+      var a = this.arg.execute(context)
+      return evaluateEach(f, context, (f, x) => f._call(a, x)) }}
+  interpreter.APP = APP
+
+  var REF = {
+    execute(context) {
+      var r = this.e.execute(context)
+      var a = context.store.add(r)
+      return constructFacet(context.pc,
+                            new interpreter.Address(a),
+                            interpreter.bottom) }}
+  interpreter.REF = REF
+
+  var DEREF = {
+    execute(context) {
+      var a = this.e.execute(context)
+      return evaluateEach(a, context, (a, x) => a.deref(context)) }}
+  interpreter.DEREF = DEREF
+
+  function ExecutionContext(scope = {}, store = new interpreter.Store(), pc = []) {
+    this.scope = scope
+    this.store = store
+    this.pc = pc
+  }
+  interpreter.ExecutionContext = ExecutionContext
+
+  // Save current value to avoid infinite recursion
+  var FunctionObject = interpreter.FunctionObject
+  function FunctionObjectF(...args) {
+    FunctionObject.apply(this, args)
+  }
+  FunctionObjectF.prototype = Object.create(FunctionObject.prototype)
+
+  FunctionObjectF.prototype._call = function(arg, x) {
+    var x2 = new interpreter.ExecutionContext(Object.create(x.scope), x.store, x.pc)
+    x2.scope[this.node.argName] = arg
+    return this.node.body.execute(x2)
+  }
+  interpreter.FunctionObject = FunctionObjectF
+
+  function run(ast) {
+    return ast.execute(new interpreter.ExecutionContext())
+  }
+  interpreter.run = run
+
+  function runWithPC(ast, pc) {
+    var x = new interpreter.ExecutionContext()
+    x.pc = pc
+    return ast.execute(x)
+  }
+
+
+  return {
+    __proto__: interpreter,
+    runWithPC,
+  }
+}())
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-standard-mk3/AST-nodes>>
+<<lambda-facet/facet-definitions>>
+<<lambda-facets-mk3/interpreter>>
+
+print(interpreter.run(app(fun('x', v('x')), c(42))) === 42)
+print(interpreter.run(bot()) === interpreter.bottom)
+print(interpreter.run(app(bot(), c(42))) === interpreter.bottom)
+print(interpreter.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(interpreter.run(deref(bot())) === interpreter.bottom)
+
+print(interpreter.runWithPC(
+  app(fun('x', deref(v('x'))),
+      ref(c(42))),
+  [1]))
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+: <1 ? 42 : BOT>
+
+Now only the necessary lines are changed.  We could refactor ~ExecutionContext~
+in the standard interpreter take a parent context and copy all its properties,
+and avoid redefining the ~FunctionObject~.
+
+The template to change the interpreter is:
+1. Take the original interpreter (as it is a singleton, though it would be easy
+   to change it to a factory: just don’t call the IIFE).
+2. Define new pieces.
+3. Change the references in the interpreter object.
+4. Return the interpreter object (or an extended version, with additional
+   exports).
+
+This does not break encapsulation of the interpreter module (though you do have
+to peek inside the module to know what to change).  But it’s still a bit
+confusing since we have multiple objects that have /slightly different/
+behavior, but have the same name...
+
+An alternative would be to consider the facets evaluation as a different
+~execute~ method, ~executeFacets~, which delegates to ~execute~ by default.
+Then, have variants of AST node creators, and a ~runFacets~ that calls
+~executeFacets~.
+
+# TODO
