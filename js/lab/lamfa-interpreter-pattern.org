@@ -541,7 +541,7 @@ FunctionObject.prototype.toString = function() {
 
 FunctionObject.prototype._call = function(arg, x) {
   var x2 = new interpreter.ExecutionContext(Object.create(x.scope), x.store)
-  x.scope[this.node.argName] = arg
+  x2.scope[this.node.argName] = arg
   return this.node.body.execute(x2)
 }
 #+END_SRC
@@ -695,9 +695,331 @@ to peek inside the module to know what to change).  But it’s still a bit
 confusing since we have multiple objects that have /slightly different/
 behavior, but have the same name...
 
+Advantage of this method is that we can use it to change dynamically the
+behavior of any instance of an interpreter.  And restore it.
+
 An alternative would be to consider the facets evaluation as a different
 ~execute~ method, ~executeFacets~, which delegates to ~execute~ by default.
 Then, have variants of AST node creators, and a ~runFacets~ that calls
-~executeFacets~.
+~executeFacets~.  This way, we can create as many interpreters as there are
+variants of evaluation.
 
-# TODO
+We can still change the behavior of evaluation dynamically with a single
+reference to the current interpreter (like a State pattern).
+
+: interpreter = interpreterStd | interpreterFacets | ...
+
+Remark: since we actually redefine what ~interpreter~ means, we are also
+changing the meaning of programs created after this change through AST node
+calls, but not of the programs created before this redefinition.  This is a bit
+troublesome.
+
+* Pure object interpreter
+Actually, the indirection that we get by prefixing calls to the definitions made
+inside the interpreter (~ExecutionContext~, ~FUN~, ...), we can obtain by using
+getters.  That is, message passing instead of direct reference.
+
+Since using a closure in the module pattern is just to prevent overriding the
+definitions, and we /do need/ to override the definitions, we can use define the
+interpreter as an object, which would make the overriding much more convenient
+and straightforward.
+
+#+NAME: lambda-standard-object/interpreter
+#+BEGIN_SRC js
+var interpreter = {
+  BOT: {
+    execute(context) {
+      return this.interp.bottom }},
+
+  CONST: {
+    new(interp, e) { return {__proto__: this, interp, e} },
+    execute(context) {
+      return this.e }},
+
+  VAR: {
+    execute(context) {
+      return context.scope[this.e] }},
+
+  FUN: {
+    execute(context) {
+      return new this.interp.FunctionObject(this, context.scope) }},
+
+  APP: {
+    execute(context) {
+      var f = this.fun.execute(context)
+      var a = this.arg.execute(context)
+      return f._call(a, context) }},
+
+  REF: {
+    execute(context) {
+      var r = this.e.execute(context)
+      var a = context.store.add(r)
+      return new this.interp.Address(a) }},
+
+  DEREF: {
+    execute(context) {
+      var a = this.e.execute(context)
+      return a.deref(context) }},
+
+  bottom: {
+    _call(arg, context) { return this },
+    deref(context) { return this },
+    toString() { return 'BOT' },
+  },
+
+  Address: {
+    new(a) { return {__proto__: this, a } },
+    deref(context) { return context.store.retrieve(this.a) },
+    toString() { return `#${this.a}` },
+  },
+
+  ExecutionContext: {
+    new(scope = {}, store = this.interp.Store.new()) {
+      return {__proto__: this, scope, store }
+    },
+  },
+
+  Store: {
+    new() {return {__proto__: this, refs: [] } },
+    add(value) {
+      this.refs.push(value)
+      return this.refs.length - 1
+    },
+    retrieve(addr) { return this.refs[addr] },
+  },
+
+  FunctionObject: {
+    new(node, scope) { return {__proto__: this, node, scope } },
+    _call(arg, x) {
+      var x2 = this.interp.ExecutionContext.new(Object.create(x.scope), x.store)
+      x2.scope[this.node.argName] = arg
+      return this.node.body.execute(x2)
+    },
+    toString() { return '<func>' },
+  },
+
+  run(node) {
+    return node.execute(this.interp.ExecutionContext.new())
+  },
+}
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-standard-mk3/AST-nodes>>
+<<lambda-standard-object/interpreter>>
+
+print(interpreter.run(app(fun('x', v('x')), c(42))) === 42)
+print(interpreter.run(bot()) === interpreter.bottom)
+print(interpreter.run(app(bot(), c(42))) === interpreter.bottom)
+print(interpreter.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(interpreter.run(deref(bot())) === interpreter.bottom)
+#+END_SRC
+
+#+RESULTS:
+: /tmp/babel-26894hMB/js-script-26894lNJ:81:4 TypeError: this.interp is undefined
+
+So it’s actually not that difficult to change the interpreter if it follows a
+style that is amenable to extension.  The trick is, of course, that we might
+/not want/ or might not be /able to/ refactor the whole interpreter as we did
+there.  In this case, we must find mechanisms to override the protection of the
+module pattern.
+
+** Sidebar: nested objects
+Problem: ~CONST~ is an object defined inside ~std~, and so is
+~ExecutionContext~.  A method inside ~CONST~ wants to refer to
+~ExecutionContext~.
+
+: std.ExecutionContext
+
+does the job.  But, now we derive ~fct~ from ~std~ and override
+~ExecutionContext~ in ~fct~.  Since we can call ~fct.CONST~, we would like it to
+refer to ~fct.ExecutionContext~.  In other words, we would like ~fct.CONST~ to
+follow the receiver.
+
+If objects are not nested, this is the behavior we want:
+
+#+BEGIN_SRC js :results output stderr
+var std = {
+  C() { return this.ExecutionContext() },
+  ExecutionContext() { return 'ok' },
+}
+
+print(std.C())
+
+var fct = {
+  __proto__: std,
+  ExecutionContext() { return 'super ok' }
+}
+
+print(fct.C())
+#+END_SRC
+
+#+RESULTS:
+: ok
+: super ok
+
+Just plain dynamic binding: ~C~ is found on the prototype of ~fct~, but ~this~
+is the receiver of the ~C~ call, which is ~fct~, so ~fct.ExecutionContext~ is
+used in the end.
+
+But we have nested objects, and using ~std~ does not work in ~fct.C~:
+
+#+BEGIN_SRC js :results output stderr
+var std = {
+  C: {
+    m() { return std.f() }},
+
+  f() { return 'ok' },
+}
+
+print(std.C.m())
+
+var fct = {
+  __proto__: std,
+  f() { return 'super ok' }
+}
+
+print(fct.C.m())
+#+END_SRC
+
+#+RESULTS:
+: ok
+: ok
+
+For once, we could do it easily in Java with ~std.this~, which refers to the
+instance of ~std~ associated with the instance of the nested class.
+
+But in JavaScript, there is absolutely no difference between defining ~C~ inside
+~std~ or outside.  Defining it inside does not implicitly define a link between
+the two:
+
+#+BEGIN_SRC js :results output stderr
+var C = {m() { return std.f() }}
+
+var std = {
+  f() { return 'ok' },
+  C: C,
+}
+
+print(std.C.m())
+
+var fct = {
+  __proto__: std,
+  f() { return 'super ok' }
+}
+
+print(fct.C.m())
+#+END_SRC
+
+#+RESULTS:
+: ok
+: ok
+
+In fact, ~std.C.m()~ and ~fct.C.m()~ and ~C.m()~ are totally equivalent calls.
+If we want the first two to give different answers, ~C~ must be a different
+object.  Or we can get tricky with getters.
+
+#+BEGIN_SRC js :results output stderr
+var C = {m() { return this.interp.f() }}
+
+var std = {
+  f() { return 'ok' },
+  get C() {
+    C.interp = this
+    return C
+  }
+}
+
+print(std.C.m())
+
+var fct = {
+  __proto__: std,
+  f() { return 'super ok' }
+}
+
+print(fct.C.m())
+#+END_SRC
+
+#+RESULTS:
+: ok
+: super ok
+
+As ~this~ is a hidden argument of function that is bound to the receiver, we can
+view ~this.interp~ as an additional special argument, bound to the receiver of
+the receiver.  We don’t have any syntax to pass this extra special argument, but
+could make it explicit.
+
+#+BEGIN_SRC js :results output stderr
+var C = {m(interp) { return interp.f() }}
+
+var std = {
+  f() { return 'ok' },
+  C: C,
+}
+
+print(std.C.m(std))
+
+var fct = {
+  __proto__: std,
+  f() { return 'super ok' }
+}
+
+print(fct.C.m(fct))
+#+END_SRC
+
+#+RESULTS:
+: ok
+: super ok
+
+But then, once again the ~std~ prefix is useless.
+
+Rather than having to pass this argument to all calls to ~m~, if ~C~ has
+instances, we can attach the interpreter at their creation:
+
+#+BEGIN_SRC js :results output stderr
+var std = {
+  CONST: {
+    new(interp, e) { return {__proto__: this, e, interp}},
+    execute() { return this.interp.ExecutionContext.new() },
+    toString() { return this.e },
+  },
+
+  ExecutionContext: {
+    new() { return 'ok' }
+  },
+}
+
+print(std.CONST.new(std, 42).execute())
+
+function c(e) { return std.CONST.new(std, e) }
+
+print(c(42).execute())
+
+var fct = {
+  __proto__: std,
+  ExecutionContext: {
+    new() { return 'super ok' }
+  },
+}
+
+print(fct.CONST.new(fct, 42).execute())
+
+function cF(e) { return fct.CONST.new(fct, e) }
+
+print(cF(42).execute())
+#+END_SRC
+
+#+RESULTS:
+: ok
+: ok
+: super ok
+: super ok
+
+This is quite explicit and straightforward (no tricks).  There could be an issue
+of coherence: if multiple objects like ~C~ are defined inside ~std~, we would
+like all their derivatives to point to the same interpreter object.  Here, this
+is ensured only by using constructors like ~c~ and ~cF~.
+
+So, in the end, I like the getter solution the best.  But I might not want to
+define getters for every nested objects ... so is there a way to cut the work
+with a constructor function?
