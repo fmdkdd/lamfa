@@ -726,40 +726,53 @@ and straightforward.
 
 #+NAME: lambda-standard-object/interpreter
 #+BEGIN_SRC js
-var interpreter = {
-  BOT: {
-    execute(context) {
-      return this.interp.bottom }},
+<<nested-object>>
 
-  CONST: {
-    new(interp, e) { return {__proto__: this, interp, e} },
+var stdProto = derive(recObject, {
+  BOT: nest('interp', {
     execute(context) {
-      return this.e }},
+      return this.interp.bottom }}),
 
-  VAR: {
+  CONST: nest('interp', {
+    new(e) {
+      return derive(this, {e}) },
     execute(context) {
-      return context.scope[this.e] }},
+      return this.e }}),
 
-  FUN: {
+  VAR: nest('interp', {
+    new(e) {
+      return derive(this, {e}) },
     execute(context) {
-      return new this.interp.FunctionObject(this, context.scope) }},
+      return context.scope[this.e] }}),
 
-  APP: {
+  FUN: nest('interp', {
+    new(argName, body) {
+      return derive(this, {argName, body}) },
+    execute(context) {
+      return this.interp.FunctionObject.new(this, context.scope) }}),
+
+  APP: nest('interp', {
+    new(fun, arg) {
+      return derive(this, {fun, arg}) },
     execute(context) {
       var f = this.fun.execute(context)
       var a = this.arg.execute(context)
-      return f._call(a, context) }},
+      return f._call(a, context) }}),
 
-  REF: {
+  REF: nest('interp', {
+    new(e) {
+      return derive(this, {e}) },
     execute(context) {
       var r = this.e.execute(context)
       var a = context.store.add(r)
-      return new this.interp.Address(a) }},
+      return this.interp.Address.new(a) }}),
 
-  DEREF: {
+  DEREF: nest('interp', {
+    new(e) {
+      return derive(this, {e}) },
     execute(context) {
       var a = this.e.execute(context)
-      return a.deref(context) }},
+      return a.deref(context) }}),
 
   bottom: {
     _call(arg, context) { return this },
@@ -768,19 +781,19 @@ var interpreter = {
   },
 
   Address: {
-    new(a) { return {__proto__: this, a } },
+    new(a) { return derive(this, {a}) },
     deref(context) { return context.store.retrieve(this.a) },
     toString() { return `#${this.a}` },
   },
 
-  ExecutionContext: {
+  ExecutionContext: nest('interp', {
     new(scope = {}, store = this.interp.Store.new()) {
-      return {__proto__: this, scope, store }
+      return derive(this, {scope, store})
     },
-  },
+  }),
 
   Store: {
-    new() {return {__proto__: this, refs: [] } },
+    new() {return derive(this, {refs: []}) },
     add(value) {
       this.refs.push(value)
       return this.refs.length - 1
@@ -788,35 +801,138 @@ var interpreter = {
     retrieve(addr) { return this.refs[addr] },
   },
 
-  FunctionObject: {
-    new(node, scope) { return {__proto__: this, node, scope } },
+  FunctionObject: nest('interp', {
+    new(node, scope) { return derive(this, {node, scope}) },
     _call(arg, x) {
       var x2 = this.interp.ExecutionContext.new(Object.create(x.scope), x.store)
       x2.scope[this.node.argName] = arg
       return this.node.body.execute(x2)
     },
     toString() { return '<func>' },
-  },
+  }),
 
   run(node) {
-    return node.execute(this.interp.ExecutionContext.new())
+    return node.execute(this.ExecutionContext.new())
   },
-}
+})
+
+var std = stdProto.new()
+#+END_SRC
+
+#+NAME: lambda-standard-object/AST-nodes
+#+BEGIN_SRC js
+function bot() { return std.BOT }
+function c(e) { return std.CONST.new(e) }
+function v(e) { return std.VAR.new(e) }
+function fun(argName, body) { return std.FUN.new(argName, body) }
+function app(fun, arg) { return std.APP.new(fun, arg) }
+function ref(e) { return std.REF.new(e) }
+function deref(e) { return std.DEREF.new(e) }
 #+END_SRC
 
 #+BEGIN_SRC js :results output stderr
-<<lambda-standard-mk3/AST-nodes>>
 <<lambda-standard-object/interpreter>>
+<<lambda-standard-object/AST-nodes>>
 
-print(interpreter.run(app(fun('x', v('x')), c(42))) === 42)
-print(interpreter.run(bot()) === interpreter.bottom)
-print(interpreter.run(app(bot(), c(42))) === interpreter.bottom)
-print(interpreter.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
-print(interpreter.run(deref(bot())) === interpreter.bottom)
+print(std.run(app(fun('x', v('x')), c(42))) === 42)
+print(std.run(bot()) === std.bottom)
+print(std.run(app(bot(), c(42))) === std.bottom)
+print(std.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(std.run(deref(bot())) === std.bottom)
 #+END_SRC
 
 #+RESULTS:
-: /tmp/babel-26894hMB/js-script-26894lNJ:81:4 TypeError: this.interp is undefined
+: true
+: true
+: true
+: true
+: true
+
+#+NAME: lambda-facets-object/interpreter
+#+BEGIN_SRC js :results output stderr
+<<nested-object>>
+<<lambda-standard-object/interpreter>>
+<<lambda-facet/facet-definitions>>
+
+var fctProto = derive(stdProto, {
+  APP: derive(stdProto.APP, {
+    execute(context) {
+      var f = this.fun.execute(context)
+      var a = this.arg.execute(context)
+      return evaluateEach(f, context, (f, x) => f._call(a, x)) }}),
+
+  REF: derive(stdProto.REF, {
+    execute(context) {
+      var r = this.e.execute(context)
+      var a = context.store.add(r)
+      return constructFacet(context.pc,
+                            this.interp.Address.new(a),
+                            this.interp.bottom) }}),
+
+  DEREF: derive(stdProto.DEREF, {
+    execute(context) {
+      var a = this.e.execute(context)
+      return evaluateEach(a, context, (a, x) => a.deref(context)) }}),
+
+
+  ExecutionContext: derive(stdProto.ExecutionContext, {
+    new(scope = {}, store = this.interp.Store.new(), pc = []) {
+      return derive(this, {scope, store, pc})
+    }
+  }),
+
+  FunctionObject: derive(stdProto.FunctionObject, {
+    _call(arg, x) {
+      var x2 = this.interp.ExecutionContext.new(Object.create(x.scope),
+                                                x.store, x.pc)
+      x2.scope[this.node.argName] = arg
+      return this.node.body.execute(x2)
+    }}),
+
+  runWithPC(ast, pc) {
+    var x = this.ExecutionContext.new()
+    x.pc = pc
+    return ast.execute(x)
+  },
+})
+
+var fct = fctProto.new()
+#+END_SRC
+
+#+NAME: lambda-facets-object/AST-nodes
+#+BEGIN_SRC js
+function bot() { return fct.BOT }
+function c(e) { return fct.CONST.new(e) }
+function v(e) { return fct.VAR.new(e) }
+function fun(argName, body) { return fct.FUN.new(argName, body) }
+function app(fun, arg) { return fct.APP.new(fun, arg) }
+function ref(e) { return fct.REF.new(e) }
+function deref(e) { return fct.DEREF.new(e) }
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lambda-facets-object/interpreter>>
+<<lambda-facets-object/AST-nodes>>
+
+print(fct.run(app(fun('x', v('x')), c(42))) === 42)
+print(fct.run(bot()) === std.bottom)
+print(fct.run(app(bot(), c(42))) === std.bottom)
+print(fct.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(fct.run(deref(bot())) === std.bottom)
+
+print(fct.runWithPC(
+  app(fun('x', deref(v('x'))),
+      ref(c(42))),
+  [1]))
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+: <1 ? 42 : BOT>
 
 So it’s actually not that difficult to change the interpreter if it follows a
 style that is amenable to extension.  The trick is, of course, that we might
@@ -1020,6 +1136,371 @@ of coherence: if multiple objects like ~C~ are defined inside ~std~, we would
 like all their derivatives to point to the same interpreter object.  Here, this
 is ensured only by using constructors like ~c~ and ~cF~.
 
-So, in the end, I like the getter solution the best.  But I might not want to
-define getters for every nested objects ... so is there a way to cut the work
-with a constructor function?
+The Java solution is to have one instance of ~C~ for ~std~, and another for
+~fct~, and each instance of ~C~ has a link to the interpreter it is defined in.
+We can simulate that in two ways: link each instance of ~C~ to its enclosing
+object at their creation, through the ~new~ call, as above, or use the getter
+trick.
+
+The getter solution fails when we can create instances of ~C~ though.  Since
+the link to the enclosing object happens through the prototype, which means
+there can only be one interpreter linked at a time for all ~C~ objects.
+
+#+BEGIN_SRC js :results output stderr
+var C = {
+  new(e) { return {__proto__: this, e}},
+  m() { return this.interp.f(this.e) }}
+
+var std = {
+  f(e) { return 'ok' + e },
+  get C() {
+    C.interp = this
+    return C
+  }
+}
+
+print(std.C.new(42).m())
+
+var fct = {
+  __proto__: std,
+  f(e) { return 'super ok' + e }
+}
+
+print(fct.C.new(42).m())
+
+var c = fct.C.new(42)
+print(std.C.new(32).m())
+print(c.m())
+#+END_SRC
+
+#+RESULTS:
+: ok42
+: super ok42
+: ok32
+: ok42
+
+So the only robust solution is to make the link at creation time.
+
+Seems even the ECMASCript 2015 specification has not refined sugar for nested
+classes.  So putting if you put an object inside another, you have to make the
+links explicit.
+
+#+BEGIN_SRC js :results output stderr
+var C = {
+  new(e) { return {__proto__: this, e}},
+  m() { return this.interp.f(this.e) }}
+
+var std = {
+  f(e) { return 'std f ' + e },
+  closeNested() {
+    this.C = {__proto__: C, interp: this}
+    return this
+  }
+}.closeNested()
+
+print(std.C.new(42).m())
+
+var fct = {
+  __proto__: std,
+  f(e) { return 'fct f' + e }
+}.closeNested()
+
+print(fct.C.new(42).m())
+
+var c = std.C.new(42)
+var cF = fct.C.new(10)
+print(c.m())
+print(cF.m())
+#+END_SRC
+
+#+RESULTS:
+: std f 42
+: fct f42
+: std f 42
+: fct f10
+
+Aha!  With the above version, it is clear that ~C~ is an object independent from
+~std~ or ~fct~, but still coupled to one.  Then, ~std.C~ is just a derivative of
+~C~ with the right ~interp~ reference.  So is ~fct.C~ after the call to
+~closeNested~.  We have the following prototype chain:
+
+: C <- std.C
+: ^- fct.C
+
+So, if we want to derive ~C~ in ~fct~, we need:
+
+: C <- C’ <- fct.C
+: ^
+: |
+: std.C
+
+#+BEGIN_SRC js :results output stderr
+var C = {
+  new(e) { return {__proto__: this, e}},
+  m() { return this.interp.f(this.e) }}
+
+var std = {
+  f(e) { return 'std f ' + e },
+  closeNested() {
+    this.C = {__proto__: C, interp: this}
+    return this
+  }
+}.closeNested()
+
+print(std.C.new(42).m())
+
+var CF = {
+  __proto__: C,
+  m() { return this.interp.f(this.e + this.e)}}
+
+var fct = {
+  __proto__: std,
+  f(e) { return 'fct f' + e },
+  closeNested() {
+    this.C = {__proto__: CF, interp: this}
+    return this
+  },
+}.closeNested()
+
+print(fct.C.new(42).m())
+
+var c = std.C.new(42)
+var cF = fct.C.new(10)
+print(c.m())
+print(cF.m())
+#+END_SRC
+
+#+RESULTS:
+: std f 42
+: fct f84
+: std f 42
+: fct f20
+
+The boilerplate is a bit unfortunate.  Wish I had macros here.
+
+Looks like ~std~ tries to be two things at once: a /template/ for an ~std~
+/instance/ in which the relationship between ~std~ and ~C~ is declared.  The
+instance has a ~C~ derivative with the relationship in place.  When ~fct~ comes,
+it also needs to derive the ~std~ template in order to generate the ~fct~
+instance, and tie the knot by recreating a ~C~ object with the right reference
+to ~interp~.
+
+#+BEGIN_SRC js :results output stderr
+var stdProto = {
+  new() {
+    var o = Object.create(this)
+    o.C = {__proto__: this.C, interp: o}
+    return o
+  },
+  C: {
+    new(e) { return {__proto__: this, e } },
+    m() { return this.interp.f(this.e) },
+  },
+  f(e) { return 'stdProto.f' + e },
+}
+
+var std = stdProto.new()
+
+print(std.C.new(42).m())
+
+var fctProto = {
+  __proto__: stdProto,
+
+  C: {
+    __proto__: stdProto.C,
+    m() { return this.interp.f(this.e + this.e) },
+  },
+
+  f(e) { return 'fctProto.f' + e },
+}
+
+var fct = fctProto.new()
+
+print(fct.C.new(10).m())
+#+END_SRC
+
+#+RESULTS:
+: stdProto.f42
+: fctProto.f20
+
+So I think the right way to think of this is: we have objects that share a
+dependency that cannot be expressed at declaration time using object literals.
+So, we must use dedicated constructors that will enforce this relationship.
+Here, the constructor is simply ~stdProto.new~.
+
+We get the same behavior as the following Java code:
+
+#+BEGIN_SRC java :classname Std :results output
+class Std {
+  public class C {
+    int e;
+    public C(int e) { this.e = e; }
+    public String m() { return Std.this.f(e); }
+  }
+
+  public String f(int e) { return "Std.f " + e; }
+
+  public static void main(String args[]) {
+    Std.C c = (new Std()).new C(42);
+    System.out.println(c.m());
+
+    Fct.C cf = (new Fct()).new C(10);
+    System.out.println(cf.m());
+  }
+}
+
+class Fct extends Std {
+  public class C extends Std.C {
+     public C(int e) { super(e); }
+     public String m() { return Fct.this.f(e + e); }
+  }
+  public String f(int e) { return "Fct.f " + e; }
+}
+#+END_SRC
+
+#+RESULTS:
+: Std.f 42
+: Fct.f 20
+
+Finally, we need to automatically build the ~new~ from the list of all nested
+objects that must keep in sync:
+
+#+BEGIN_SRC js :results output stderr
+var nested = {}
+function nest(obj) { return {nested, obj} }
+function isNested(o) { return o.nested === nested }
+function nestedObj(o) { return o.obj }
+function derive(parent, obj) {
+  if (isNested(parent))
+    parent = nestedObj(parent)
+  Object.setPrototypeOf(obj, parent)
+  return obj
+}
+
+var recObject = {
+  new() {
+    var o = Object.create(this)
+    // Derive all nested objects (even inherited from the prototype)
+    // and set their `interp` link.
+    for (var p in this) {
+      if (isNested(this[p])) {
+        o[p] = derive(nestedObj(this[p]), {interp: o}) }}
+    return o
+  },
+}
+
+var stdProto = derive(recObject, {
+  C: nest({
+    new(e) { return {__proto__: this, e } },
+    m() { return this.interp.f(this.e) },
+  }),
+  f(e) { return 'stdProto.f' + e },
+})
+
+var std = stdProto.new()
+
+print(std.C.new(42).m())
+
+var fctProto = derive(stdProto, {
+  C: nest(derive(stdProto.C, {
+    m() { return this.interp.f(this.e + this.e) },
+  })),
+
+  f(e) { return 'fctProto.f' + e },
+})
+
+var fct = fctProto.new()
+
+print(fct.C.new(10).m())
+#+END_SRC
+
+#+RESULTS:
+: stdProto.f42
+: fctProto.f20
+
+With ~nest~ I can declare nested objects in ~stdProto~, and when ~stdProto.new~
+is called, instances are derived from all the nested objects of ~stdProto~ and
+their ~interp~ link is set to ~std~.  Now, I can derive ~stdProto~ into
+~fctProto~ and redefine only the ~m~ method of ~C~.
+
+NB: the ~interp~ name is fixed, but could be an argument to ~nest~, which would
+make the solution generic for nested objects.
+
+We can go improve things further slightly.  Here we use ~derive~ instead of
+setting the ~__proto__~ link because ~derive~ goes around nested objects:
+~derive(stdProto.C)~ will find the ~C~ object we want to derive from, not the
+wrapper created by ~nest~.  However, since ~stdProto.C~ is declared as a nested
+object, it might not make sense to be able to un-nest it in ~fctProto~.  So
+maybe ~derive~ can auto-nest:
+
+#+NAME: nested-object
+#+BEGIN_SRC js
+var nested = {}
+function nest(selfName, obj) { return {nested, selfName, obj} }
+function isNested(o) { return o.nested === nested }
+function nestedObj(o) { return o.obj }
+function nestedSelfName(o) { return o.selfName }
+function derive(parent, obj) {
+  if (isNested(parent)) {
+    Object.setPrototypeOf(obj, nestedObj(parent))
+    obj.super = nestedObj(parent)
+    return nest(nestedSelfName(parent), obj)
+  }
+  else {
+    Object.setPrototypeOf(obj, parent)
+    obj.super = parent
+    return obj
+  }
+}
+
+var recObject = {
+  new() {
+    var o = Object.create(this)
+    // Derive all nested objects (even inherited from the prototype)
+    // and set their `interp` link.
+    for (var p in this) {
+      if (isNested(this[p])) {
+        o[p] = derive(nestedObj(this[p]),
+                      {[nestedSelfName(this[p])]: o}) }}
+    return o
+  },
+}
+#+END_SRC
+
+and then we get the quite declarative:
+
+#+BEGIN_SRC js :results output stderr
+<<nested-object>>
+
+var stdProto = derive(recObject, {
+  C: nest('interp', {
+    new(e) { return {__proto__: this, e } },
+    m() { return this.interp.f(this.e) },
+  }),
+  f(e) { return 'stdProto.f' + e },
+})
+
+var std = stdProto.new()
+
+print(std.C.new(42).m())
+
+var fctProto = derive(stdProto, {
+  C: derive(stdProto.C, {
+    m() { return this.interp.f(this.e + this.e) },
+  }),
+
+  f(e) { return 'fctProto.f' + e },
+})
+
+var fct = fctProto.new()
+
+print(fct.C.new(10).m())
+#+END_SRC
+
+#+RESULTS:
+: stdProto.f42
+: fctProto.f20
+
+One last stealth addition to [[nested-object]] above is the ~super~ property on a
+deriving object.  Because of ~nest~, we cannot rely on using ~__proto__~ to find
+out our parent, ~derive~ sets up a correct link.
