@@ -451,7 +451,6 @@ into the new version of the interpreter.
 But we need to adapt the standard interpreter for that to work.
 
 * Lambda standard Mk3
-
 #+NAME: lambda-standard-mk3/AST-nodes
 #+BEGIN_SRC js
 function bot() { return interpreter.BOT }
@@ -927,11 +926,14 @@ print(fct.runWithPC(
 #+END_SRC
 
 #+RESULTS:
+: fct.FO
 : true
 : true
 : true
+: fct.FO
 : true
 : true
+: fct.FO
 : <1 ? 42 : BOT>
 
 So it’s actually not that difficult to change the interpreter if it follows a
@@ -1504,3 +1506,280 @@ print(fct.C.new(10).m())
 One last stealth addition to [[nested-object]] above is the ~super~ property on a
 deriving object.  Because of ~nest~, we cannot rely on using ~__proto__~ to find
 out our parent, ~derive~ sets up a correct link.
+
+* Visitor interpreter
+With the pure object interpreter, AST node objects are tied to an interpreter at
+the time of their construction.  If we want to change the meaning of a program,
+we have to re-parse it.
+
+Instead, what we can do is to make the interpreter dynamic: only needed when
+executing the AST node.
+
+#+NAME: lamfa-std-visitor/interpreter
+#+BEGIN_SRC js
+<<nested-object>>
+
+var stdProto = derive(recObject, {
+  executeBOT(context) {
+    return this.bottom
+  },
+
+  executeCONST(e, context) {
+    return e
+  },
+
+  executeVAR(e, context) {
+    return context.scope[e]
+  },
+
+  executeFUN(argName, body, context) {
+    return this.FunctionObject.new({argName, body}, context.scope)
+  },
+
+  executeAPP(fun, arg, context) {
+    var f = fun.execute(this, context)
+    var a = arg.execute(this, context)
+    return f._call(a, context)
+  },
+
+  executeREF(e, context) {
+    var r = e.execute(this, context)
+    var a = context.store.add(r)
+    return this.Address.new(a)
+  },
+
+  executeDEREF(e, context) {
+    var a = e.execute(this, context)
+    return a.deref(context)
+  },
+
+  bottom: {
+    _call(arg, context) { return this },
+    deref(context) { return this },
+    toString() { return 'BOT' },
+  },
+
+  Address: {
+    new(a) { return {__proto__: this, a} },
+    deref(context) { return context.store.retrieve(this.a) },
+    toString() { return `#${this.a}` },
+  },
+
+  ExecutionContext: nest('interp', {
+    new(scope = {}, store = this.interp.Store.new()) {
+      return {__proto__: this, scope, store}
+    },
+  }),
+
+  Store: {
+    new() {return {__proto__: this, refs: []} },
+    add(value) {
+      this.refs.push(value)
+      return this.refs.length - 1
+    },
+    retrieve(addr) { return this.refs[addr] },
+  },
+
+  FunctionObject: nest('interp', {
+    new(node, scope) { return {__proto__: this, node, scope} },
+    _call(arg, x) {
+      var x2 = this.interp.ExecutionContext.new(Object.create(x.scope), x.store)
+      x2.scope[this.node.argName] = arg
+      return this.node.body.execute(this.interp, x2)
+    },
+    toString() { return '<func>' },
+  }),
+
+  run(node) {
+    return node.execute(this, this.ExecutionContext.new())
+  },
+})
+
+var std = stdProto.new()
+#+END_SRC
+
+#+NAME: lamfa-std-visitor/AST-nodes
+#+BEGIN_SRC js
+var BOT = {
+  execute(interp, context) {
+    return interp.executeBOT(context)
+  }
+}
+
+var CONST = {
+  new(e) { return {__proto__: this, e} },
+  execute(interp, context) {
+    return interp.executeCONST(this.e, context)
+  }
+}
+
+var VAR = {
+  new(e) { return {__proto__: this, e} },
+  execute(interp, context) {
+    return interp.executeVAR(this.e, context)
+  }
+}
+
+var FUN = {
+  new(argName, body) { return {__proto__: this, argName, body} },
+  execute(interp, context) {
+    return interp.executeFUN(this.argName, this.body, context)
+  }
+}
+
+var APP = {
+  new(fun, arg) { return {__proto__: this, fun, arg} },
+  execute(interp, context) {
+    return interp.executeAPP(this.fun, this.arg, context)
+  }
+}
+
+var REF = {
+  new(e) { return {__proto__: this, e} },
+  execute(interp, context) {
+    return interp.executeREF(this.e, context)
+  }
+}
+
+var DEREF = {
+  new(e) { return {__proto__: this, e} },
+  execute(interp, context) {
+    return interp.executeDEREF(this.e, context)
+  }
+}
+
+function bot() { return BOT }
+function c(e) { return CONST.new(e) }
+function v(e) { return VAR.new(e) }
+function fun(argName, body) { return FUN.new(argName, body) }
+function app(fun, arg) { return APP.new(fun, arg) }
+function ref(e) { return REF.new(e) }
+function deref(e) { return DEREF.new(e) }
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lamfa-std-visitor/interpreter>>
+<<lamfa-std-visitor/AST-nodes>>
+
+print(std.run(bot()) === std.bottom)
+print(std.run(app(fun('x', v('x')), c(42))) === 42)
+print(std.run(app(bot(), c(42))) === std.bottom)
+print(std.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(std.run(deref(bot())) === std.bottom)
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+
+#+NAME: lamfa-fct-visitor/interpreter
+#+BEGIN_SRC js
+<<lambda-facet/facet-definitions>>
+<<lamfa-std-visitor/interpreter>>
+
+var fctProto = derive(stdProto, {
+  executeAPP(fun, arg, context) {
+      var f = fun.execute(this, context)
+      var a = arg.execute(this, context)
+      return evaluateEach(f, context, (f, x) => f._call(a, x)) },
+
+  executeREF(e, context) {
+      var r = e.execute(this, context)
+      var a = context.store.add(r)
+      return constructFacet(context.pc,
+                            this.Address.new(a),
+                            this.bottom) },
+
+  executeDEREF(e, context) {
+      var a = e.execute(this, context)
+      return evaluateEach(a, context, (a, x) => a.deref(context)) },
+
+
+  ExecutionContext: derive(stdProto.ExecutionContext, {
+    new(scope = {}, store = this.interp.Store.new(), pc = []) {
+      return derive(this, {scope, store, pc})
+    }
+  }),
+
+  FunctionObject: derive(stdProto.FunctionObject, {
+    _call(arg, x) {
+      var x2 = this.interp.ExecutionContext.new(Object.create(x.scope),
+                                                x.store, x.pc)
+      x2.scope[this.node.argName] = arg
+      return this.node.body.execute(this.interp, x2)
+    }}),
+
+  runWithPC(node, pc) {
+    var x = this.ExecutionContext.new()
+    x.pc = pc
+    return node.execute(this, x)
+  },
+})
+
+var fct = fctProto.new()
+#+END_SRC
+
+#+BEGIN_SRC js :results output stderr
+<<lamfa-fct-visitor/interpreter>>
+<<lamfa-std-visitor/AST-nodes>>
+
+print(fct.run(app(fun('x', v('x')), c(42))) === 42)
+print(fct.run(bot()) === std.bottom)
+print(fct.run(app(bot(), c(42))) === std.bottom)
+print(fct.run(app(fun('x', deref(v('x'))), ref(c(42)))) === 42)
+print(fct.run(deref(bot())) === std.bottom)
+
+print(fct.runWithPC(
+  app(fun('x', deref(v('x'))),
+      ref(c(42))),
+  [1]))
+#+END_SRC
+
+#+RESULTS:
+: true
+: true
+: true
+: true
+: true
+: <1 ? 42 : BOT>
+
+#+BEGIN_SRC js :results output stderr
+<<lamfa-fct-visitor/interpreter>>
+<<lamfa-std-visitor/AST-nodes>>
+
+var p0 = app(fun('x', v('x')), c(42))
+
+print(std.run(p0))
+print(fct.run(p0))
+
+var p1 = app(fun('x', deref(v('x'))),
+             ref(c(42)))
+
+print(std.run(p1))
+print(fct.run(p1))
+print(fct.runWithPC(p1, [1]))
+#+END_SRC
+
+#+RESULTS:
+: 42
+: 42
+: 42
+: 42
+: <1 ? 42 : BOT>
+
+Okay!  If the AST nodes are not tied to the interpreter at creation, we can
+indeed plug the interpreter only at evaluation time.  This allows to reuse the
+constructor AST objects on different interpreters, and we still benefit from
+the differential definition of \lambda^{facet}.
+
+I note however that this is not the interpreter pattern.  AST nodes objects are
+only there to dispatch to the correct function in the interpreter object.  They
+might as well just be integers, and the dispatching could be implemented as:
+
+: execute[node.type](context)
+
+and we end up with a solution much closer to
+[[lamfa-es6-pattern-matching-simple.js]].  Or what we can do in plain Haskell/OCaml.
