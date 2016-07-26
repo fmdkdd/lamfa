@@ -1185,3 +1185,274 @@ with(double(num)) {
 
 #+RESULTS:
 : 2+4
+
+* Object algebra view
+According to [[https://www.youtube.com/watch?v=snbsYyBS4Bs][this guy]], this construction is really close to doing object
+algebras.  The main difference I see is that instead of composing ~with~ calls,
+we should compose modules themselves.
+
+The full example:
+
+#+BEGIN_SRC js
+function e1(interp) {
+  with (interp) {
+    return num(3)
+  }
+}
+
+function e2(interp) {
+  with (interp) {
+    return plus(num(1), num(2))
+  }
+}
+
+// Identity algebra, builds an AST
+
+var ast = {
+  num(n) { return {type: 'num', n} },
+  plus(a, b) { return {type: 'plus', a, b}},
+}
+
+e1(ast) //: Object {type:"num",n:3}
+e2(ast) //: Object {type:"plus",a:Object {type:"num",n:1},b:Object {type:"num",n:2}}
+
+// Standard eval
+
+var evall = {
+  num(n) { return n },
+  plus(a, b) { return a + b },
+}
+
+e1(evall) //: 3
+e2(evall) //: 3
+
+// Pretty printer
+
+var pp = {
+  num(n) { return `${n}` },
+  plus(a, b) { return `${a} + ${b}` },
+}
+
+e1(pp) //: "3"
+e2(pp) //: "1 + 2"
+
+// Double
+
+function double(base) {
+  return {__proto__: base,
+    num(n) { with(base) { return num(n) * 2 }},
+  }
+}
+
+e1(double(evall)) //: 6
+e2(double(evall)) //: 6
+
+// Multi double
+e2(double(double(double(evall)))) //: 24
+
+// Double + pp
+e1(double(pp)) //: 6
+e2(double(pp)) //: "2 + 4"
+
+// State
+
+function state(base) {
+  var count = 0
+
+  return {__proto__: base,
+    num(n) { count++; with (base) { return num(n) }},
+    plus(a, b) { count++; with (base) { return plus(a, b) }},
+    getCount() { return count },
+  }
+}
+
+e1(state(evall)) //: 3
+e2(state(evall)) //: 3
+
+// Need a new program to see count
+
+function e3(interp) {
+  with (interp) {
+    return [
+      getCount(),
+      e2(interp),
+      getCount()
+    ]
+  }
+}
+
+e3(state(evall)) //: [0,3,3]
+
+// state + double
+e3(state(double(evall))) //: [0,6,3]
+e3(double(state(evall))) //: [0,6,3]
+
+// state + pp + double
+e3(double(state(pp))) //: [0,"2 + 4",3]
+e3(state(double(pp))) //: [0,"2 + 4",3]
+#+END_SRC
+
+One unintended consequence is that double can compose with pp.  In the LASSY
+paper, this is not possible because double overrides the ~eval~ operation, while
+the pretty printing is a different operation named ~show~.  Term objects ~num~
+and ~plus~ have multiple operations, following the Interpreter pattern.
+
+But here, the meaning of the terms is determined by whatever interpreter is
+passed as argument to the programs.  ~show~ is one interpreter, while ~eval~ is
+another.  If we define ~double~ as functions over a base interpreter, they can
+accept ~show~ as base as well as ~eval~.  Since multiplying a string by an
+integer is okay, we have that result.  It might be safer to just define the
+extensions ~double~ and ~state~ by specifying their parent statically:
+
+#+BEGIN_SRC js
+var double = {__proto__: evall,
+  num(n) { with(evall) { return num(n) * 2 }},
+}
+#+END_SRC
+
+Also, we can compose ~show~ with ~double~ in LASSY as well, by defining ~show~
+to call the ~eval~ operation instead of using directly the value of ~n~.
+
+** Okay, but how is this related to the object algebras papers?
+Extensibility for the masses paper can be related to what is done here.  But
+really, [[https://oleksandrmanzyuk.wordpress.com/2014/06/18/from-object-algebras-to-finally-tagless-interpreters-2/][this blog post]] is more readable.
+
+The main difference is that it's in Java, and it uses interfaces and generics.
+
+Also, there are two variants for interpreters, you can either define them
+directly, as I did:
+
+#+BEGIN_SRC js
+var evall = {
+  num(n) { return n },
+  plus(a, b) { return a + b },
+}
+#+END_SRC
+
+which means that as soon as you call ~e1(evall)~, you get a result.
+
+Or, you can delay that invocation:
+
+#+BEGIN_SRC js
+var deval = {
+  num(n) { return _ => n },
+  plus(a, b) { return _ => a() + b() },
+}
+
+e1(deval) //: function
+e1(deval)() //: 3
+e2(deval)() //: 3
+#+END_SRC
+
+Note that since ~num~ returns a thunk, ~plus~ has to deal with thunks as well.
+
+Also, if what we return should answer to multiple messages, we can use objects
+instead of thunks:
+
+#+BEGIN_SRC js
+var devalo = {
+  num(n) { return {eval() { return n }}},
+  plus(a, b) { return {eval() { return a.eval() + b.eval() }}},
+}
+
+e1(devalo) //: Object {eval:function eval}
+e1(devalo).eval() //: 3
+e2(devalo).eval() //: 3
+#+END_SRC
+
+The authors call the first method (~evall~) "internal visitors".  They are
+directly applied, and programs are resolved bottom-up.
+
+I guess this can be problematic for lazy evaluation.  Like if we add an If
+construction that should not evaluate both its branches before its condition?
+
+#+BEGIN_SRC js
+var ifte = {__proto__: evall,
+  num(n) { console.log(n); return evall.num(n) },
+  iff(c, t, e) { if (c) { return t } else { return e }},
+}
+
+function e_with_if(interp) {
+  with (interp) {
+    return iff(num(0), num(2), num(3))
+  }
+}
+
+e_with_if(ifte) //: 3
+#+END_SRC
+
+Here we evaluate all arguments to ~iff~ before they are passed, so a side effect
+like ~console.log~ happens thrice.
+
+No cheating by redefining ~num~, because this is fun:
+
+#+BEGIN_SRC js
+function ifte() {
+  var stdout = []
+
+  return {
+    yes: true,
+    no: false,
+    iff(c, t, e) { if (c) { return t } else { return e }},
+    print(s) { stdout.push(s) },
+    flush() { return stdout.join('\n') }
+  }
+}
+
+function e_with_if(interp) {
+  with (interp) {
+    iff(yes, print(2), print(3))
+    return flush()
+  }
+}
+
+e_with_if(ifte()) //: "2 3"
+#+END_SRC
+
+So, by delaying the evaluation of the arguments, we could implement ~if~:
+
+#+BEGIN_SRC js
+function difte() {
+  var stdout = []
+
+  return {
+    yes() { return true },
+    no() { return false },
+    iff(c, t, e) { return _ => { if (c()) { return t() } else { return e() }}},
+    print(s) { return _ => stdout.push(s) },
+    flush() { return _ => stdout.join('\n') },
+    seq(l, r) { return _ => { l(); return r() }},
+  }
+}
+
+function e_with_if(interp) {
+  with (interp) {
+    return seq(
+      iff(yes, print(2), print(3)),
+      flush())
+  }
+}
+
+e_with_if(difte())() //: "2"
+#+END_SRC
+
+Now we only have one side effect.  But everything is a thunk, which is messier.
+
+Note we have to add ~seq~ if we want to only deal with expressions, and
+everything as a thunk.  There is a variant where ~if~ does not return a thunk
+but is executed directly, but it is borderline partial evaluation.
+
+Another difference is that it's a bit cumbersome to combine the algebras.  If
+you add a multiplication term, you subtype the base language.  If you wanted to
+add the same extension to multiple algebras, you would have to make distinct
+subclasses.
+
+In LASSY, you can compose algebras elegantly by chaining ~with~.  We can also
+define algebras as functions of more elementary algebras here.  But that is not
+guaranteed to work, as a ~double~ on top of a ~deval~ will not work, since
+~double~ is not aware of thunks.
+
+Note that, in the blog post, the conclusion is that using Haskell type classes
+to implement object algebras leads to more composition.  I guess that the
+Feature Oriented Programming with Object Algebras paper goes into this direction
+as well, as it uses Scala.
