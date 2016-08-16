@@ -1,12 +1,12 @@
-interface Term { int eval(); }
+abstract class Term { abstract int eval(); }
 
-class Constant implements Term {
+class Constant extends Term {
   int n;
   Constant(int n) { this.n = n; }
   public int eval() { return n; }
 }
 
-class Plus implements Term {
+class Plus extends Term {
   Term a, b;
   Plus(Term a, Term b) { this.a = a; this.b = b; }
   public int eval() { return a.eval() + b.eval(); }
@@ -69,7 +69,7 @@ class Test {
 }
 
 /* Add Mult */
-class Mult implements Term {
+class Mult extends Term {
   Term a, b;
   Mult(Term a, Term b) { this.a = a; this.b = b; }
   public int eval() { return a.eval() * b.eval(); }
