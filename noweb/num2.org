@@ -1,0 +1,73 @@
+Proof of concept of using noweb references for creating interpreter variants.
+
+#+NAME: terms
+#+BEGIN_SRC js
+let num = (n) => ({type: 'num', n})
+let plus = (a, b) => ({type: 'plus', a, b})
+#+END_SRC
+
+#+NAME: interp
+#+BEGIN_SRC js :noweb no
+function interp(n) {
+  switch (n.type) {
+  case 'num':
+    return interp_num(n)
+
+  case 'plus':
+    return interp_plus(n)
+  }
+}
+#+END_SRC
+
+#+NAME: interp-num
+#+BEGIN_SRC js
+function interp_num({n}) { return n }
+#+END_SRC
+
+#+NAME: interp-plus
+#+BEGIN_SRC js
+function interp_plus({a,b}) {
+  return interp(a) + interp(b)
+}
+#+END_SRC
+
+* Test
+
+#+NAME: std-interp
+#+BEGIN_SRC js
+<<interp>>
+<<interp-num>>
+<<interp-plus>>
+#+END_SRC
+
+#+BEGIN_SRC nodejs :results output stderr :noweb yes :tangle interp2-tangled.js
+<<terms>>
+<<std-interp>>
+
+let e1 = plus(num(1), num(2))
+
+console.log(interp(e1))
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+And now, it's easy to substitute other definitions.
+
+#+NAME: interp-num-double
+#+BEGIN_SRC js
+function interp_num({n}) { return n * 2 }
+#+END_SRC
+
+#+BEGIN_SRC nodejs :results output stderr :noweb yes :tangle interp3-tangled.js
+<<terms>>
+<<std-interp>>
+<<interp-num-double>>
+
+let e1 = plus(num(1), num(2))
+
+console.log(interp(e1))
+#+END_SRC
+
+#+RESULTS:
+: 6

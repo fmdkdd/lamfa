@@ -1,0 +1,65 @@
+Proof of concept of using noweb references for creating interpreter variants.
+
+#+NAME: terms
+#+BEGIN_SRC js
+let num = (n) => ({type: 'num', n})
+let plus = (a, b) => ({type: 'plus', a, b})
+#+END_SRC
+
+#+NAME: interp
+#+BEGIN_SRC js :noweb yes
+function interp(n) {
+  switch (n.type) {
+  case 'num':
+    <<interp-num>>
+    break
+
+  case 'plus':
+    <<interp-plus>>
+    break
+  }
+}
+#+END_SRC
+
+#+NAME: interp-num
+#+BEGIN_SRC js
+return n.n
+#+END_SRC
+
+#+NAME: interp-plus
+#+BEGIN_SRC js
+return interp(n.a) + interp(n.b)
+#+END_SRC
+
+#+NAME: interp-num-double
+#+BEGIN_SRC js
+return n.n * 2
+#+END_SRC
+
+* Test
+
+#+BEGIN_SRC nodejs :results output :noweb yes :tangle interp-tangled.js
+<<terms>>
+<<interp>>
+
+let e1 = plus(num(1), num(2))
+
+console.log(interp(e1))
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+This works, but no way to substitute ~interp-plus~ for another piece of code.
+
+#+BEGIN_SRC nodejs :results output stderr :noweb strip-export
+<<terms>>
+<<interp>>
+
+let e1 = plus(num(1), num(2))
+
+console.log(interp(e1))
+#+END_SRC
+
+#+RESULTS:
+: 3
