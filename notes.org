@@ -165,6 +165,39 @@ hackish, and will potentially break if the incompatible package is updated, but
 I’m not sure there is a way to improve on that.  Testing if a package is present
 is at least a clean way to separate these shims from the main code.
 
+** [2016-08-24 mer.]
+*** A BASIC interpreter
+Tried to find an online interpreter of BASIC, but did not find one that worked
+correctly.
+
+I want a really bare-bones BASIC, not the fancy variety with functions and no
+line numbers.
+
+So I finally found an emulator for vintage hardware.  SimH simulates the PDP11,
+and [[http://avitech.com.au/?page_id=709][someone]] has nicely documented all the steps to load an interactive BASIC on
+it.
+
+The setup is a bit convoluted for my needs.  I have to launch the emulator,
+connect to the emulated PDP from telnet, then tell the emulator to load my
+program into tape, then go back to telnet to actually tell the PDP to read the
+tape and run the program.  Annoyingly, sometimes when I start the emulator it
+fails to bind the listening socket.
+
+But it runs!
+
+Having blanks in the program does not seem to work (maybe it's end of input for
+the reader?).
+
+There is a BASIC manual over [[http://www.retrocmp.com/attachments/article/254/DEC-11-AJPB-D_PDP-11_BASIC_Programming_Manual_Dec70.pdf][there]].
+
+The difficulty is in representing the AST without cheating too much.  I don't
+have lists, only arrays.  Arrays can be multi-dimensional, but assignation was
+not supported by the online interpreter.
+
+I could devise of an encoding of trees into multi-dimensional arrays, but
+ultimately I'm not sure it's worth pushing this idea further with the amount of
+time left.  The overall idea should be pretty clear without the details.
+
 * The problem
 Say we have a monadic interpreter for a toy language.  We want to
 instrument this interpreter: modify the rules to create additional
