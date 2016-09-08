@@ -1,0 +1,99 @@
+
+(defun make-interp ()
+  (let ((eval-num)
+        (eval-plus)
+        (eval-run)))
+
+  (setq eval-num (lambda (num)
+                   (nth 1 num)))
+
+  (setq eval-plus (lambda (plus)
+    (+ (funcall eval-run (nth 1 plus))
+       (funcall eval-run (nth 2 plus)))))
+
+  (setq eval-run (lambda (node)
+    (let ((type (nth 0 node)))
+      (cond
+       ((eq type 'num) (funcall eval-num node))
+       ((eq type 'plus) (funcall eval-plus node))))))
+
+  eval-run)
+
+(fset 'interp (make-interp))
+
+(interp '(num 1)) ;: 1
+(interp '(plus (num 1) (num 2))) ;: 3
+
+(defun eval-num (num)
+  (* 2 (nth 1 num)))
+
+(let ((eval-num #'eval-num-double))
+  (interp '(num 1)))
+
+(flet ((eval-num (x) 2))
+  (interp '(num 1)))
+
+(interp '(num 1))
+
+(cl-prettyexpand '(flet ((eval-num (x) 2))
+                    (interp '(num 1))))
+
+
+(fmakunbound 'eval-num)
+
+(let* ((vnew #'eval-num-double)
+       (old (symbol-function 'eval-num)))
+  (unwind-protect
+      (progn
+        (fset 'eval-num vnew)
+        (interp '(num 1)))
+    (fset 'eval-num old)))
+
+(symbol-function 'eval-num)
+
+(function eval-num)
+
+(set 'fff (lambda (x) 42))
+(function fff)
+(symbol-function 'fff)
+fff
+
+
+
+(defun make-interp ()
+  (let ((eval-num)
+        (eval-plus)
+        (eval-run)))
+
+  (fset 'eval-num (lambda (num)
+                    (nth 1 num)))
+
+  (fset 'eval-plus (lambda (plus)
+                     (+ (eval-run (nth 1 plus))
+                        (eval-run (nth 2 plus)))))
+
+  (fset 'eval-run (lambda (node)
+                    (let ((type (nth 0 node)))
+                      (cond
+                       ((eq type 'num) (eval-num node))
+                       ((eq type 'plus) (eval-plus node))))))
+
+  (symbol-function 'eval-run))
+
+(make-interp)
+
+
+(defun make-interp ()
+  (defun eval-num (num)
+    (nth 1 num))
+
+  (defun eval-plus (plus)
+    (+ (eval-run (nth 1 plus))
+       (eval-run (nth 2 plus))))
+
+  (defun eval-run (node)
+    (let ((f (intern (format "eval-%s" (nth 0 node)))))
+      (when (functionp f)
+        (funcall f node))))
+
+  #'eval-run)
