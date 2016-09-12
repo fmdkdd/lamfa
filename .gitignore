@@ -1,2 +1,3 @@
 img/*.svg
 hs/transform/dist
+*.class
