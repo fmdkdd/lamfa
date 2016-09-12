@@ -4,24 +4,31 @@ enum Term {
   Plus(Box<Term>, Box<Term>),
 }
 
+fn num(n: u64) -> Term {
+  Term::Num(n)
+}
+
+fn plus(a: Term, b: Term) -> Term {
+  Term::Plus(Box::new(a), Box::new(b))
+}
 
 fn main() {
-  let e1 = Term::Num(3);
-  let e2 = Term::Plus(Box::new(Term::Num(1)), Box::new(Term::Num(2)));
-
   {
     use eval1::Eval;
-    println!("{} {}", e1.clone().eval(), e2.clone().eval());
+    println!("{} ", num(3).eval());
+    println!("{} ", plus(num(1), num(2)).eval());
   }
 
   {
     use eval2::Eval;
-    println!("{} {}", e1.clone().eval(), e2.clone().eval());
+    println!("{} ", num(3).eval());
+    println!("{} ", plus(num(1), num(2)).eval());
   }
 
   {
     use eval3::Eval;
-    println!("{} {}", e1.clone().eval(), e2.clone().eval());
+    println!("{} ", num(3).eval());
+    println!("{} ", plus(num(1), num(2)).eval());
   }
 }
 
